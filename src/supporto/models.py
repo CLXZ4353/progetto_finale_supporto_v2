@@ -22,6 +22,49 @@ def is_model_visible(model_id: str) -> bool:
     return not any(marker in str(model_id).lower() for marker in HIDDEN_MODEL_MARKERS)
 
 
+def is_lfm3(model_id: str) -> bool:
+    """True se il modello è LFM3, l'unico con reasoning controllabile qui."""
+    return "lfm3" in str(model_id).lower()
+
+
+def _model_family(model_id: str) -> str:
+    """Nome del modello senza alias di quantizzazione (es. `@q4_k_m`)."""
+    return str(model_id).strip().split("@", 1)[0].lower()
+
+
+def dedupe_models(models: list[str], *, preferred: str | None = None) -> list[str]:
+    """Unisce gli alias dello stesso modello e mette `preferred` al suo posto.
+
+    LM Studio può esporre lo stesso modello sia con l'alias di quantizzazione
+    sia con il nome canonico: nel selettore deve comparire una volta sola.
+    """
+    options: list[str] = []
+    for model in models:
+        model = str(model)
+        if not is_model_visible(model):
+            continue
+        family = _model_family(model)
+        if any(_model_family(kept) == family for kept in options):
+            continue
+        options.append(model)
+    if preferred and is_model_visible(preferred):
+        family = _model_family(preferred)
+        for index, model in enumerate(options):
+            if _model_family(model) == family:
+                options[index] = str(preferred)
+                break
+        else:
+            options.insert(0, str(preferred))
+    return options
+
+
+def final_reasoning_effort(settings: Settings) -> str | None:
+    """Reasoning da usare nella risposta finale; None lascia il default."""
+    if settings.model_backend == "local" and is_lfm3(settings.lm_studio_model):
+        return "none"
+    return None
+
+
 def get_chat_model(settings: Settings | None = None, *, reasoning_effort: str | None = None):
     """Crea il modello di chat.
 

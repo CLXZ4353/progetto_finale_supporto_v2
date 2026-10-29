@@ -34,7 +34,7 @@ from supporto.config import (  # noqa: E402
     get_settings,
 )
 from supporto.memory import PreferenceMemory  # noqa: E402
-from supporto.models import is_model_visible, list_local_models  # noqa: E402
+from supporto.models import dedupe_models, is_lfm3, list_local_models  # noqa: E402
 from supporto.support_data import build_support_data  # noqa: E402
 from supporto.turns import message_text  # noqa: E402
 
@@ -94,11 +94,6 @@ def _available_models(base_url: str) -> list[str]:
     return list_local_models(Settings(lm_studio_base_url=base_url))
 
 
-def _same_model(left: str, right: str) -> bool:
-    """True se i due ID indicano lo stesso modello, anche con alias di quantizzazione."""
-    return left == right or left.split("@", 1)[0] == right.split("@", 1)[0]
-
-
 def _build_active_graph(settings: Settings) -> None:
     ledger = AuditLedger()
     memory = PreferenceMemory()
@@ -121,33 +116,10 @@ def model_controls() -> None:
     local_model = settings.lm_studio_model
     reasoning = ""
     if backend.startswith("Locale"):
-        available = [
-            model
-            for model in _available_models(settings.lm_studio_base_url)
-            if is_model_visible(model)
-        ]
+        available = _available_models(settings.lm_studio_base_url)
         if not available:
             st.sidebar.caption("LM Studio non raggiungibile: uso il modello del `.env`.")
-        # LM Studio può esporre lo stesso modello sia con l'alias di
-        # quantizzazione sia con il nome canonico: nel selettore vale una volta.
-        options: list[str] = []
-        for model in available:
-            if any(_same_model(model, kept) for kept in options):
-                continue
-            options.append(model)
-        if is_model_visible(settings.lm_studio_model):
-            same_index = next(
-                (
-                    index
-                    for index, model in enumerate(options)
-                    if _same_model(model, settings.lm_studio_model)
-                ),
-                None,
-            )
-            if same_index is None:
-                options.insert(0, settings.lm_studio_model)
-            else:
-                options[same_index] = settings.lm_studio_model
+        options = dedupe_models(available, preferred=settings.lm_studio_model)
         if not options:
             options = ["lfm3-1.7b@q4_k_m"]
         selected = (
@@ -161,17 +133,18 @@ def model_controls() -> None:
             index=options.index(selected),
             key="local_model",
         )
-        mode = st.sidebar.selectbox(
-            "Reasoning (scelta tool)",
-            ["Default del modello", "Disattivato"],
-            index=1 if settings.lm_studio_reasoning_effort == "none" else 0,
-            key="reasoning_mode",
-            help=(
-                "Solo per modelli che supportano il controllo del reasoning (es. LFM3). "
-                "La risposta finale usa sempre reasoning disattivato per evitare contenuti vuoti."
-            ),
-        )
-        reasoning = "none" if mode == "Disattivato" else ""
+        if is_lfm3(local_model):
+            mode = st.sidebar.selectbox(
+                "Reasoning (scelta tool)",
+                ["Default del modello", "Disattivato"],
+                index=1 if settings.lm_studio_reasoning_effort == "none" else 0,
+                key="reasoning_mode",
+                help=(
+                    "Con LFM3 il reasoning resta attivo per la scelta del tool. "
+                    "La risposta finale usa sempre reasoning disattivato per evitare contenuti vuoti."
+                ),
+            )
+            reasoning = "none" if mode == "Disattivato" else ""
     else:
         if not settings.gemini_api_key:
             st.sidebar.error("GEMINI_API_KEY assente nel `.env`: Gemini non è utilizzabile.")

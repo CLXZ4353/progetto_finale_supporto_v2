@@ -24,7 +24,7 @@ from langgraph.types import Command
 from .audit import AuditLedger
 from .config import Settings, get_settings
 from .memory import PreferenceMemory
-from .models import get_chat_model
+from .models import final_reasoning_effort, get_chat_model
 from .prompts import FINAL_ANSWER_PROMPT, SYSTEM_PROMPT
 from .tools import make_tools
 from .turns import last_human_index, message_text, sources_from_messages, tool_messages
@@ -75,12 +75,9 @@ def build_graph(
     # esaurire il contesto e lasciare `content` vuoto (finish_reason=length).
     # La risposta finale è solo copia dei risultati: reasoning disattivato.
     final_model = model
-    if (
-        not injected_model
-        and settings.model_backend == "local"
-        and "lfm3" in settings.lm_studio_model.lower()
-    ):
-        final_model = get_chat_model(settings, reasoning_effort="none")
+    effort = final_reasoning_effort(settings)
+    if not injected_model and effort:
+        final_model = get_chat_model(settings, reasoning_effort=effort)
     bound = model.bind_tools(tools)
 
     def agent_node(state: SupportState) -> dict[str, Any]:
