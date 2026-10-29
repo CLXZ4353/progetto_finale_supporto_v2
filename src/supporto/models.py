@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Modello di chat: locale via LM Studio o Gemini via API.
-
-Il resto del progetto usa solo `get_chat_model()`: cambiare backend non
-richiede modifiche ai tool o al grafo.
-"""
+"""Modello di chat: LM Studio locale o Gemini via API."""
 from __future__ import annotations
 
 import requests
@@ -12,8 +8,7 @@ from langchain_openai import ChatOpenAI
 
 from .config import Settings, get_settings
 
-# Modelli esclusi dal selettore della UI: BF16 non usato; il Llama 3B
-# meta-llama è sostituito da unsloth/llama-3.2-3b-instruct.
+# BF16 non usato; il Llama 3B meta-llama è sostituito da unsloth.
 HIDDEN_MODEL_MARKERS = ("bf16", "meta-llama/llama-3.2-3b")
 
 
@@ -23,54 +18,34 @@ def is_model_visible(model_id: str) -> bool:
 
 
 def is_lfm3(model_id: str) -> bool:
-    """True se il modello è LFM3, l'unico con reasoning controllabile qui."""
+    """True per LFM3, l'unico modello con reasoning controllabile qui."""
     return "lfm3" in str(model_id).lower()
 
 
-def _model_family(model_id: str) -> str:
-    """Nome del modello senza alias di quantizzazione (es. `@q4_k_m`)."""
-    return str(model_id).strip().split("@", 1)[0].lower()
-
-
 def dedupe_models(models: list[str], *, preferred: str | None = None) -> list[str]:
-    """Unisce gli alias dello stesso modello e mette `preferred` al suo posto.
-
-    LM Studio può esporre lo stesso modello sia con l'alias di quantizzazione
-    sia con il nome canonico: nel selettore deve comparire una volta sola.
-    """
-    options: list[str] = []
+    """Un alias per modello; `preferred` sostituisce quello esposto."""
+    options: dict[str, str] = {}
     for model in models:
-        model = str(model)
-        if not is_model_visible(model):
-            continue
-        family = _model_family(model)
-        if any(_model_family(kept) == family for kept in options):
-            continue
-        options.append(model)
+        if is_model_visible(model):
+            options.setdefault(str(model).split("@", 1)[0].lower(), str(model))
     if preferred and is_model_visible(preferred):
-        family = _model_family(preferred)
-        for index, model in enumerate(options):
-            if _model_family(model) == family:
-                options[index] = str(preferred)
-                break
+        family = str(preferred).split("@", 1)[0].lower()
+        if family in options:
+            options[family] = str(preferred)
         else:
-            options.insert(0, str(preferred))
-    return options
+            options = {family: str(preferred), **options}
+    return list(options.values())
 
 
 def final_reasoning_effort(settings: Settings) -> str | None:
-    """Reasoning da usare nella risposta finale; None lascia il default."""
+    """Reasoning della risposta finale: spento solo con LFM3 locale."""
     if settings.model_backend == "local" and is_lfm3(settings.lm_studio_model):
         return "none"
     return None
 
 
 def get_chat_model(settings: Settings | None = None, *, reasoning_effort: str | None = None):
-    """Crea il modello di chat.
-
-    `reasoning_effort` permette di forzare il reasoning solo per una chiamata:
-    la risposta finale LFM3 lo disattiva, la scelta dei tool usa il default.
-    """
+    """Crea il modello; `reasoning_effort` vale solo per questa istanza."""
     settings = settings or get_settings()
     if settings.model_backend == "gemini":
         if not settings.gemini_api_key:
@@ -85,6 +60,11 @@ def get_chat_model(settings: Settings | None = None, *, reasoning_effort: str | 
             retries=0,
         )
 
+    effort = (
+        settings.lm_studio_reasoning_effort
+        if reasoning_effort is None
+        else reasoning_effort
+    )
     kwargs = {
         "model": settings.lm_studio_model,
         "api_key": "lm-studio",
@@ -93,11 +73,6 @@ def get_chat_model(settings: Settings | None = None, *, reasoning_effort: str | 
         "timeout": 120,
         "max_retries": 1,
     }
-    effort = (
-        settings.lm_studio_reasoning_effort
-        if reasoning_effort is None
-        else reasoning_effort
-    )
     if effort:
         kwargs["extra_body"] = {"reasoning_effort": effort}
     return ChatOpenAI(**kwargs)
@@ -108,31 +83,31 @@ def list_local_models(settings: Settings | None = None, timeout: float = 2.0) ->
     settings = settings or get_settings()
     base = settings.lm_studio_base_url.rstrip("/")
     root = base[:-3] if base.endswith("/v1") else base
-    try:
-        response = requests.get(f"{root}/api/v0/models", timeout=timeout)
-        response.raise_for_status()
-        items = response.json().get("data", [])
-        llms = [
-            item
-            for item in items
-            if item.get("id") and str(item.get("type", "llm")).lower() == "llm"
-        ]
-        llms.sort(key=lambda item: (str(item.get("state", "")) != "loaded", str(item["id"])))
-        return [
-            str(item["id"])
-            for item in llms
-            if is_model_visible(str(item["id"]))
-        ]
-    except Exception:  # noqa: BLE001 - il server locale può essere spento
-        pass
-    try:
-        response = requests.get(f"{base}/models", timeout=timeout)
-        response.raise_for_status()
-        items = response.json().get("data", [])
-        return sorted(
-            str(item["id"])
-            for item in items
-            if item.get("id") and is_model_visible(str(item["id"]))
-        )
-    except Exception:  # noqa: BLE001
-        return []
+    for url, detailed in ((f"{root}/api/v0/models", True), (f"{base}/models", False)):
+        try:
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+            items = response.json().get("data", [])
+            if detailed:
+                items = [
+                    item
+                    for item in items
+                    if item.get("id") and str(item.get("type", "llm")).lower() == "llm"
+                ]
+                items.sort(
+                    key=lambda item: (
+                        str(item.get("state", "")) != "loaded",
+                        str(item["id"]),
+                    )
+                )
+            else:
+                items = [item for item in items if item.get("id")]
+                items.sort(key=lambda item: str(item["id"]))
+            return [
+                str(item["id"])
+                for item in items
+                if item.get("id") and is_model_visible(str(item["id"]))
+            ]
+        except Exception:  # noqa: BLE001 - il server locale può essere spento
+            continue
+    return []
