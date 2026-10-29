@@ -34,7 +34,7 @@ from supporto.agent import (  # noqa: E402
 from supporto.audit import AuditLedger  # noqa: E402
 from supporto.config import get_settings  # noqa: E402
 from supporto.memory import PreferenceMemory  # noqa: E402
-from supporto.support_data import build_support_data  # noqa: E402
+from supporto.support_data import write_support_data  # noqa: E402
 from supporto.turns import tool_names  # noqa: E402
 
 from scenarios import SCENARIOS  # noqa: E402
@@ -97,11 +97,7 @@ def run_scenario(scenario: dict, settings) -> dict:
     )
     started = time.perf_counter()
     try:
-        data = build_support_data()
-        for name in ("orders", "customers", "products", "refunds", "tickets", "preferences"):
-            (workdir / f"{name}.json").write_text(
-                json.dumps(data[name], ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+        write_support_data(workdir)
         policy.ORDERS_PATH = workdir / "orders.json"
         policy.CUSTOMERS_PATH = workdir / "customers.json"
         policy.PRODUCTS_PATH = workdir / "products.json"

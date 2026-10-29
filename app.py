@@ -6,7 +6,6 @@ Avvio:
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -28,14 +27,13 @@ from supporto.audit import AuditLedger  # noqa: E402
 from supporto.config import (  # noqa: E402
     AUDIT_PATH,
     LOGS_DIR,
-    PREFERENCES_PATH,
     SUPPORT_DIR,
     Settings,
     get_settings,
 )
 from supporto.memory import PreferenceMemory  # noqa: E402
 from supporto.models import dedupe_models, is_lfm3, list_local_models  # noqa: E402
-from supporto.support_data import build_support_data  # noqa: E402
+from supporto.support_data import write_support_data  # noqa: E402
 from supporto.turns import message_text  # noqa: E402
 
 st.set_page_config(
@@ -63,12 +61,7 @@ SCENARIOS = {
 
 
 def reset_demo_data() -> None:
-    data = build_support_data()
-    for name in ("products", "customers", "orders", "refunds", "tickets", "preferences"):
-        (SUPPORT_DIR / f"{name}.json").write_text(
-            json.dumps(data[name], ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-    PREFERENCES_PATH.write_text("{}", encoding="utf-8")
+    write_support_data(SUPPORT_DIR)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     AUDIT_PATH.write_text("", encoding="utf-8")
     for key in ("graph", "model_key", "pending"):

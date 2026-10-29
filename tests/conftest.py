@@ -2,7 +2,6 @@
 """Fixture condivise: dati demo isolati e modello scriptato (nessuna rete)."""
 from __future__ import annotations
 
-import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -20,7 +19,7 @@ from supporto.agent import build_graph  # noqa: E402
 from supporto.audit import AuditLedger  # noqa: E402
 from supporto.config import Settings  # noqa: E402
 from supporto.memory import PreferenceMemory  # noqa: E402
-from supporto.support_data import build_support_data  # noqa: E402
+from supporto.support_data import write_support_data  # noqa: E402
 
 
 class ScriptedModel:
@@ -59,11 +58,7 @@ def sandbox(tmp_path, monkeypatch):
     monkeypatch.setenv("MODEL_BACKEND", "local")
     monkeypatch.setenv("TOP_K", "3")
 
-    data = build_support_data()
-    for name in ("orders", "customers", "products", "refunds", "tickets", "preferences"):
-        (tmp_path / f"{name}.json").write_text(
-            json.dumps(data[name], ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+    write_support_data(tmp_path)
 
     monkeypatch.setattr(policy, "ORDERS_PATH", tmp_path / "orders.json")
     monkeypatch.setattr(policy, "CUSTOMERS_PATH", tmp_path / "customers.json")

@@ -8,10 +8,21 @@ viene copiato qui.
 """
 from __future__ import annotations
 
+import json
 import random
 from datetime import date, timedelta
+from pathlib import Path
 
 from .config import get_settings
+
+SUPPORT_FILES = (
+    "products",
+    "customers",
+    "orders",
+    "refunds",
+    "tickets",
+    "preferences",
+)
 
 PRODUCTS = [
     {"product_id": "P-001", "name": "Candela profumata Vaniglia", "category": "casa", "price": 24.90, "personalized": False, "hygiene": False, "digital": False, "final_sale": False, "warranty_months": 0},
@@ -253,3 +264,15 @@ def build_support_data(seed: int = 7) -> dict:
         "tickets": {},
         "preferences": {},
     }
+
+
+def write_support_data(target_dir: Path | str, *, seed: int = 7) -> dict:
+    """Scrive i sei JSON della demo in `target_dir` e restituisce i dati."""
+    folder = Path(target_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    data = build_support_data(seed)
+    for name in SUPPORT_FILES:
+        (folder / f"{name}.json").write_text(
+            json.dumps(data[name], ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    return data
