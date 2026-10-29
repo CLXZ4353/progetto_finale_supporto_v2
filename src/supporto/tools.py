@@ -17,7 +17,7 @@ from langgraph.types import interrupt
 
 from . import policy
 from .audit import AuditLedger
-from .config import get_settings
+from .config import Settings, get_settings
 from .corpus import format_context, retrieve, source_payload
 from .memory import PreferenceMemory
 from .turns import last_human_text
@@ -110,8 +110,13 @@ def _format_order(order: dict) -> str:
     return "\n".join(lines)
 
 
-def make_tools(ledger: AuditLedger, memory: PreferenceMemory) -> list:
+def make_tools(
+    ledger: AuditLedger,
+    memory: PreferenceMemory,
+    settings: Settings | None = None,
+) -> list:
     """Crea i tool legati alle dipendenze della sessione/app."""
+    settings = settings or get_settings()
 
     @tool
     def cerca_policy(
@@ -127,7 +132,7 @@ def make_tools(ledger: AuditLedger, memory: PreferenceMemory) -> list:
         """
         messages = (runtime.state or {}).get("messages") or []
         search = f"{query} {last_human_text(messages)}".strip()
-        docs = retrieve(search, k=3)
+        docs = retrieve(search, k=settings.top_k, settings=settings)
         return _json(
             {"contesto": format_context(docs), "fonti": source_payload(docs)}
         )
@@ -179,7 +184,6 @@ def make_tools(ledger: AuditLedger, memory: PreferenceMemory) -> list:
         30 giorni, esclusioni e rimborsi già eseguiti. Restituisce un esito
         leggibile con i giorni trascorsi. Non usarlo per domande generali.
         """
-        settings = get_settings()
         customer_id = _customer(runtime)
         order = policy.find_order(order_id, customer_id)
         if order is None:
@@ -231,7 +235,6 @@ def make_tools(ledger: AuditLedger, memory: PreferenceMemory) -> list:
         idoneo, sospende il turno con HITL: il rimborso viene scritto nel ledger
         solo dopo un'approvazione esplicita.
         """
-        settings = get_settings()
         customer_id = _customer(runtime)
         order = policy.find_order(order_id, customer_id)
         if order is None:

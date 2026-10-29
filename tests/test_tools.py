@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 
+from supporto.config import Settings
 from supporto.tools import make_tools
 
 
-def _tools(sandbox):
-    return {tool.name: tool for tool in make_tools(sandbox.ledger, sandbox.memory)}
+def _tools(sandbox, settings=None):
+    return {
+        tool.name: tool
+        for tool in make_tools(sandbox.ledger, sandbox.memory, settings or sandbox.settings)
+    }
 
 
 def test_cerca_policy_restituisce_fonti(sandbox, runtime):
@@ -71,6 +76,17 @@ def test_verifica_reso_casi_principali(sandbox, runtime):
     difettoso = tool.func("ORD-1008", runtime)
     assert "idoneo al reso" in difettoso
     assert "difettoso" in difettoso
+
+
+def test_verifica_reso_usa_la_data_delle_settings(sandbox, runtime):
+    settings = Settings(
+        model_backend="local",
+        lm_studio_model="modello-finto",
+        demo_today=date(2026, 11, 30),
+    )
+    testo = _tools(sandbox, settings)["verifica_reso"].func("ORD-1001", runtime)
+    assert "non idoneo" in testo
+    assert "48 giorni" in testo
 
 
 def test_proponi_rimborso_non_idoneo_non_scrive(sandbox, runtime):

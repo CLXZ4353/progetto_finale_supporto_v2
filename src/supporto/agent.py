@@ -68,7 +68,7 @@ def build_graph(
     settings = settings or get_settings()
     ledger = ledger or AuditLedger()
     memory = memory or PreferenceMemory()
-    tools = make_tools(ledger, memory)
+    tools = make_tools(ledger, memory, settings)
     injected_model = model is not None
     model = model or get_chat_model(settings)
     # Con LFM3 il reasoning aiuta la scelta del tool, ma sul passo finale può
