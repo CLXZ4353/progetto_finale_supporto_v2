@@ -172,12 +172,7 @@ def check_return_eligibility(
         result["reason"] = "Ordine non trovato per questo cliente."
         return result
 
-    if refund_for_order(order_id, refunds_path):
-        result["reason"] = "L'ordine risulta gia' rimborsato."
-        result["policy_refs"] = [POLICY_REFS["rimborsi"]]
-        return result
-
-    if order.get("refund_id"):
+    if refund_for_order(order_id, refunds_path) or order.get("refund_id"):
         result["reason"] = "L'ordine risulta gia' rimborsato."
         result["policy_refs"] = [POLICY_REFS["rimborsi"]]
         return result
@@ -257,17 +252,3 @@ def calculate_refund(order: dict, *, requires_escalation_threshold: float = ESCA
 
 def format_eur(value: float | int | str) -> str:
     return f"{float(value):.2f} EUR".replace(".", ",")
-
-
-def policy_snapshot() -> dict:
-    """Valori mostrati nella UI e usati dai test di coerenza dei documenti."""
-    return {
-        "return_window_days": RETURN_WINDOW_DAYS,
-        "warranty_months": WARRANTY_MONTHS,
-        "refund_processing_days": REFUND_PROCESSING_DAYS,
-        "free_shipping_threshold_eur": FREE_SHIPPING_THRESHOLD_EUR,
-        "shipping_cost_eur": SHIPPING_COST_EUR,
-        "escalation_threshold_eur": ESCALATION_THRESHOLD_EUR,
-        "escalation_first_response_hours": ESCALATION_FIRST_RESPONSE_HOURS,
-        "excluded_categories": sorted(EXCLUDED_CATEGORIES),
-    }

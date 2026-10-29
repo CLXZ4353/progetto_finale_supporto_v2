@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from reportlab.lib.units import cm
-from reportlab.platypus import CondPageBreak, KeepTogether, PageBreak, Spacer
+from reportlab.platypus import CondPageBreak, PageBreak, Spacer
 
 import doc_common as dc
 

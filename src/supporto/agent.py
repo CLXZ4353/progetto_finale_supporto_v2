@@ -196,13 +196,3 @@ def pending_interrupt(result: dict[str, Any] | None) -> dict[str, Any] | None:
 
 def state_values(graph, thread_id: str) -> dict[str, Any]:
     return dict(graph.get_state(_config(thread_id)).values)
-
-
-def latest_answer(graph, thread_id: str) -> str:
-    state = state_values(graph, thread_id)
-    if state.get("final_answer"):
-        return str(state["final_answer"])
-    for message in reversed(state.get("messages") or []):
-        if isinstance(message, AIMessage) and not getattr(message, "tool_calls", None):
-            return message_text(message)
-    return ""

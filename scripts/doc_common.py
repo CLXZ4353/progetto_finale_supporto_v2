@@ -18,7 +18,6 @@ from reportlab.platypus import (
     Frame,
     HRFlowable,
     Image,
-    KeepTogether,
     PageBreak,
     PageTemplate,
     Paragraph,
@@ -317,7 +316,7 @@ def table(
     data = []
     for r, row in enumerate(rows):
         cells = []
-        for c, value in enumerate(row):
+        for value in row:
             if small:
                 style = "table_header_small" if header and r == 0 else "table_small"
             else:
