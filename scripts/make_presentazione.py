@@ -703,7 +703,7 @@ slide = prs.slides.add_slide(BLANK)
 set_bg(slide)
 add_title_block(slide, "Qualità", "Test e riproducibilità", "La suite automatica non richiede LM Studio; la valutazione sì.")
 add_card(
-    slide, 0.6, 1.75, 4.0, 3.3, "45 test", "", accent=GREEN, fill=LIGHT_GREEN, body_size=12.5,
+    slide, 0.6, 1.75, 4.0, 3.3, "57 test", "", accent=GREEN, fill=LIGHT_GREEN, body_size=12.5,
     body_lines=[
         "ScriptedModel, nessuna rete",
         "Grafo, HITL, privacy, memoria",

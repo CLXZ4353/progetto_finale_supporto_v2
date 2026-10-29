@@ -271,18 +271,18 @@ Ogni scenario verifica, dove previsto, tool attesi e vietati, contenuto della ri
 
 | Profilo | Scenari | Superati | Pass rate | Tool hit | Fonti | HITL | Rimborso pulito | Sicurezza | Latenza media |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| LFM3-1.7B Q4_K_M | 31 | 31 | 100% | 100% | 100% | 100% | 100% | 100% | 5,02 s |
-| Llama 3.2 3B Q5_K_XL (Unsloth) | 31 | 24 | 77,4% | 96,6% | 88,9% | 100% | 100% | 66,7% | 1,88 s |
+| LFM3-1.7B Q4_K_M | 31 | 31 | 100% | 100% | 100% | 100% | 100% | 100% | 5,08 s |
+| Llama 3.2 3B Q5_K_XL (Unsloth) | 31 | 24 | 77,4% | 96,6% | 88,9% | 100% | 100% | 66,7% | 1,93 s |
 
 Le run di riferimento sono in `eval/results/`; `latest.json` contiene l'ultima run LFM3.
 
-Confronto diretto tra le due varianti Llama 3B, con gli stessi 31 scenari, contesto 8192, `parallel 1` e due run per modello: meta-llama Q4_0 si ferma a **23/31** (1,80 s), Unsloth Q5_K_XL a **24/31** (1,88–1,90 s). Unsloth migliora tool hit (96,6% contro 93,1%), fonti (88,9% contro 77,8%) e sicurezza (66,7% contro 33,3%), ma omette l'importo esatto in `rimborso_alto_valore` (749,00 EUR), scenario che meta-llama supera. Entrambi falliscono memoria e prompt injection. Il guadagno è reale ma non uniforme: LFM3 resta il default perché chiude 31/31, a costo di una latenza circa 2,7 volte più alta.
+Confronto diretto tra le due varianti Llama 3B, con gli stessi 31 scenari, contesto 8192, `parallel 1` e due run per modello: meta-llama Q4_0 si ferma a **23/31** (1,80 s), Unsloth Q5_K_XL a **24/31** (1,88–1,93 s). Unsloth migliora tool hit (96,6% contro 93,1%), fonti (88,9% contro 77,8%) e sicurezza (66,7% contro 33,3%), ma omette l'importo esatto in `rimborso_alto_valore` (749,00 EUR), scenario che meta-llama supera. Entrambi falliscono memoria e prompt injection. Il guadagno è reale ma non uniforme: LFM3 resta il default perché chiude 31/31, a costo di una latenza circa 2,7 volte più alta.
 
 LFM3 è il modello predefinito: circa 2,7 volte più lento di Llama 3.2 3B (Unsloth Q5_K_XL), ma più affidabile nella scelta dei tool e nell'esposizione dei dati. Llama resta l'alternativa veloce, adatta a demo con hardware modesto.
 
 La run finale di LFM3 è **31/31** con una media di **0,94 tool per turno**. Nelle run intermedie erano emersi due fallimenti (`reso_difettoso` e `memoria_implicita`), corretti intervenendo sui prompt: il primo chiedeva al modello di citare la difettosità, il secondo di non salvare preferenze non richieste esplicitamente.
 
-**Reasoning.** Con LFM3 il reasoning attivo (variabile vuota) ha dato la migliore scelta dei tool. La risposta finale lo disattiva sempre: con la tabella completa dei 10 ordini il secondo passo arrivava a **7.058 token** e restituiva `content` vuoto con `finish_reason=length`. Disattivandolo solo lì, la run resta **31/31** e scende a **5,02 s** medi. Con `LM_STUDIO_REASONING_EFFORT=none` su tutto il grafo una run precedente si è fermata a 27/31, fallendo `info_tracking`, `escalation`, `richiesta_operatore` e `prompt_injection`: il default consigliato resta la variabile vuota.
+**Reasoning.** Con LFM3 il reasoning attivo (variabile vuota) ha dato la migliore scelta dei tool. La risposta finale lo disattiva sempre: con la tabella completa dei 10 ordini il secondo passo arrivava a **7.058 token** e restituiva `content` vuoto con `finish_reason=length`. Disattivandolo solo lì, la run resta **31/31** e scende a **5,08 s** medi. Con `LM_STUDIO_REASONING_EFFORT=none` su tutto il grafo una run precedente si è fermata a 27/31, fallendo `info_tracking`, `escalation`, `richiesta_operatore` e `prompt_injection`: il default consigliato resta la variabile vuota.
 
 **Metodo.** La valutazione misura il sistema così com'è: se il modello sceglie il tool sbagliato o inventa un numero, lo scenario fallisce. Non c'è una correzione a posteriori che nasconda l'errore; la failure gallery conserva risposta, tool e controlli falliti, e `eval/results/latest.json` contiene la run più recente.
 
@@ -304,7 +304,7 @@ python -m pytest -q tests
 
 I test usano un modello scriptato (`ScriptedModel`) e dati isolati: **non richiedono LM Studio** né rete. Coprono flussi del grafo, HITL, privacy, memoria, policy, corpus, ledger e scenari.
 
-Stato attuale: **45 passed**.
+Stato attuale: **57 passed**.
 
 ---
 
@@ -357,8 +357,9 @@ progetto_finale_supporto_v2/
 │  ├─ policy.py               policy-as-code
 │  ├─ prompts.py              system prompt e prompt finale
 │  ├─ support_data.py         generazione dati demo
-│  └─ tools.py                7 tool LangChain
-├─ tests/                     45 test
+│  ├─ tools.py                7 tool LangChain
+│  └─ turns.py                helper di messaggi e turni
+├─ tests/                     57 test
 ├─ .env.example
 ├─ requirements.txt
 └─ requirements-dev.txt

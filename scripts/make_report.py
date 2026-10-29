@@ -35,6 +35,7 @@ llama = dc.load_llama()
 fs = final["summary"]
 ls = (llama or {}).get("summary", {})
 lat = f"{fs['avg_latency_s']:.2f}".replace(".", ",")
+ls_lat = f"{ls.get('avg_latency_s', 0):.2f}".replace(".", ",")
 
 # --- grafico ---------------------------------------------------------------
 profiles = [("LFM3 1.7B", fs, "#6b4429"), ("Llama 3.2 3B Unsloth", ls, "#4f6b4d")]
@@ -133,7 +134,7 @@ story.append(
         [
             (f"{fs['passed']}/{fs['total']}", "scenari superati"),
             (dc.pct(fs["tool_hit_rate"]), "tool hit rate"),
-            ("45", "test automatici"),
+            ("57", "test automatici"),
             (f"{fs['avg_latency_s']:.2f} s".replace(".", ","), "latenza media"),
         ]
     )
@@ -292,7 +293,7 @@ story.append(
     P(
         f"LFM3 è più lento ma più affidabile: 31/31 con 0,94 tool per turno e "
         f"{lat} s medi. Llama (Unsloth) è più veloce "
-        "(1,88 secondi) ma sbaglia tool, fonti e sicurezza (66,7% contro 100%); i 7 fallimenti si "
+        f"({ls_lat} secondi) ma sbaglia tool, fonti e sicurezza (66,7% contro 100%); i 7 fallimenti si "
         "concentrano su resi, memoria e sicurezza.",
         "small",
     )
@@ -339,7 +340,7 @@ story.append(
     P(
         "La suite automatica usa un modello scriptato (<font face='Courier'>ScriptedModel</font>) e dati "
         "isolati: non richiede LM Studio né rete. Copre flussi del grafo, HITL, privacy, memoria, policy, "
-        "corpus, ledger e scenari. Stato attuale: <b>45 test superati</b>."
+        "corpus, ledger e scenari. Stato attuale: <b>57 test superati</b>."
     )
 )
 story.append(dc.code_block("python -m pytest -q tests\npython eval/run_eval.py --backend local\nstreamlit run app.py\npython cli.py --customer C-001"))
@@ -374,7 +375,7 @@ story.append(
             ["Backend deterministico", "Sì", "No"],
             ["HITL", "Nodo separato del grafo", "Dentro proponi_rimborso"],
             ["Scenari", "30", "31"],
-            ["Test", "76", "45"],
+            ["Test", "76", "57"],
         ],
         [4.8 * cm, 6.4 * cm, 6.4 * cm],
         small=True,

@@ -21,6 +21,7 @@ llama = dc.load_llama()
 fs = final["summary"]
 ls = (llama or {}).get("summary", {})
 lat = f"{fs['avg_latency_s']:.2f}".replace(".", ",")
+ls_lat = f"{ls.get('avg_latency_s', 0):.2f}".replace(".", ",")
 
 story: list = []
 
@@ -55,7 +56,7 @@ story.append(
         [
             (f"{fs['passed']}/{fs['total']}", "scenari superati (LFM3)"),
             (f"{dc.pct(fs['tool_hit_rate'])}", "tool hit rate"),
-            ("45", "test automatici"),
+            ("57", "test automatici"),
             (f"{fs['avg_latency_s']:.2f} s".replace(".", ","), "latenza media"),
         ]
     )
@@ -365,7 +366,7 @@ story.append(
         [
             ["Profilo", "Scenari", "Superati", "Pass rate", "Tool hit", "Fonti", "HITL", "Sicurezza", "Latenza"],
             ["LFM3-1.7B Q4_K_M", "31", "31", "100%", "100%", "100%", "100%", "100%", f"{fs['avg_latency_s']:.2f} s".replace(".", ",")],
-            ["Llama 3.2 3B Unsloth", "31", "24", "77,4%", "96,6%", "88,9%", "100%", "66,7%", "1,88 s"],
+            ["Llama 3.2 3B Unsloth", "31", "24", "77,4%", "96,6%", "88,9%", "100%", "66,7%", f"{ls_lat} s"],
         ],
         [4.3 * cm, 1.4 * cm, 1.6 * cm, 1.7 * cm, 1.6 * cm, 1.3 * cm, 1.2 * cm, 1.6 * cm, 1.5 * cm],
         align_center_from=1,
@@ -375,12 +376,12 @@ story.append(Spacer(1, 0.2 * cm))
 story.append(
     dc.P(
         f"LFM3 è il modello predefinito: circa 2,7 volte più lento di Llama 3.2 3B "
-        f"(Unsloth) ({lat} s contro 1,88 s), ma più affidabile "
+        f"(Unsloth) ({lat} s contro {ls_lat} s), ma più affidabile "
         "nella scelta dei tool e nell'esposizione dei dati. La run finale supera tutti "
         "gli scenari con una media di 0,94 tool per turno; le run intermedie avevano "
         "evidenziato due errori di formulazione, corretti nei prompt (citare la "
         "difettosità e non salvare preferenze non richieste). Llama resta l'alternativa "
-        "veloce: 1,88 secondi per turno, ma con errori su tool, fonti e sicurezza."
+        f"veloce: {ls_lat} secondi per turno, ma con errori su tool, fonti e sicurezza."
     )
 )
 story.append(
@@ -389,7 +390,7 @@ story.append(
         "migliore scelta dei tool. La risposta finale lo disattiva sempre: con la tabella "
         "completa dei 10 ordini il secondo passo consumava 7.058 token e restituiva "
         "contenuto vuoto con <font face='Courier'>finish_reason=length</font>; "
-        "disattivandolo solo lì la run resta 31/31 e scende a 5,02 s medi. Con "
+        f"disattivandolo solo lì la run resta 31/31 e scende a {lat} s medi. Con "
         "<font face='Courier'>LM_STUDIO_REASONING_EFFORT=none</font> su tutto il grafo una "
         "run precedente si è fermata a 27/31, fallendo informazioni, escalation e "
         "prompt injection. Per questo il default consigliato è lasciare la variabile "
@@ -420,7 +421,7 @@ story.append(
     dc.P(
         "La suite automatica usa un modello scriptato (<font face='Courier'>ScriptedModel</font>) "
         "e dati isolati: non richiede LM Studio né rete. Copre flussi del grafo, HITL, "
-        "privacy, memoria, policy, corpus, ledger e scenari. Stato attuale: <b>45 test "
+        "privacy, memoria, policy, corpus, ledger e scenari. Stato attuale: <b>57 test "
         "superati</b>."
     )
 )
@@ -464,7 +465,7 @@ story.append(
             ["Backend deterministico", "Sì", "No"],
             ["HITL", "Nodo separato del grafo", "Dentro <font face='Courier'>proponi_rimborso</font>"],
             ["Scenari", "30", "31"],
-            ["Test", "76", "45"],
+            ["Test", "76", "57"],
         ],
         [4.6 * cm, 6.2 * cm, 5.2 * cm],
     )
@@ -542,7 +543,7 @@ story.append(
             ["<font face='Courier'>data/corpus/</font>", "10 documenti Markdown di policy"],
             ["<font face='Courier'>data/support/</font>", "Dati demo sintetici (ordini, clienti, rimborsi, ticket)"],
             ["<font face='Courier'>eval/</font>", "31 scenari, runner e risultati JSON/Markdown"],
-            ["<font face='Courier'>tests/</font>", "45 test automatici senza LM Studio"],
+            ["<font face='Courier'>tests/</font>", "57 test automatici senza LM Studio"],
             ["<font face='Courier'>scripts/</font>", "Reset demo e generazione dei documenti"],
         ],
         [5.0 * cm, 11.0 * cm],
