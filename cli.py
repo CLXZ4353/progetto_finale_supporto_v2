@@ -26,23 +26,11 @@ from supporto.agent import (  # noqa: E402
     state_values,
 )
 from supporto.config import get_settings  # noqa: E402
-
-
-def _last_turn(state: dict) -> list:
-    messages = state.get("messages") or []
-    start = 0
-    for index, message in enumerate(messages):
-        if getattr(message, "type", "") == "human":
-            start = index
-    return messages[start:]
+from supporto.turns import tool_names  # noqa: E402
 
 
 def _tools_used(state: dict) -> list[str]:
-    return [
-        str(message.name)
-        for message in _last_turn(state)
-        if getattr(message, "type", "") == "tool" and getattr(message, "name", "")
-    ]
+    return tool_names(state.get("messages") or [])
 
 
 def _print_sources(state: dict) -> None:

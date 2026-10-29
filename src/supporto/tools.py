@@ -20,6 +20,7 @@ from .audit import AuditLedger
 from .config import get_settings
 from .corpus import format_context, retrieve, source_payload
 from .memory import PreferenceMemory
+from .turns import last_human_text
 
 PRIVACY_MESSAGE = (
     "Non trovo l'ordine {order_id} tra quelli associati a questo profilo. "
@@ -40,15 +41,6 @@ def _json(payload: Any) -> str:
 
 def _customer(runtime: ToolRuntime) -> str:
     return str((runtime.state or {}).get("customer_id") or "")
-
-
-def _last_human_text(runtime: ToolRuntime) -> str:
-    """Testo dell'ultima richiesta del cliente, usato per espandere la query."""
-    for message in reversed((runtime.state or {}).get("messages") or []):
-        if getattr(message, "type", "") == "human":
-            content = getattr(message, "content", "")
-            return content if isinstance(content, str) else ""
-    return ""
 
 
 def _thread_id(runtime: ToolRuntime) -> str | None:
@@ -133,7 +125,8 @@ def make_tools(ledger: AuditLedger, memory: PreferenceMemory) -> list:
         La ricerca unisce la query del modello alla richiesta originale del
         cliente, così i termini specifici non vanno persi.
         """
-        search = f"{query} {_last_human_text(runtime)}".strip()
+        messages = (runtime.state or {}).get("messages") or []
+        search = f"{query} {last_human_text(messages)}".strip()
         docs = retrieve(search, k=3)
         return _json(
             {"contesto": format_context(docs), "fonti": source_payload(docs)}

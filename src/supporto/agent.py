@@ -27,6 +27,7 @@ from .memory import PreferenceMemory
 from .models import get_chat_model
 from .prompts import FINAL_ANSWER_PROMPT, SYSTEM_PROMPT
 from .tools import make_tools
+from .turns import last_human_index, message_text, sources_from_messages, tool_messages
 
 RECURSION_LIMIT = 20
 
@@ -42,35 +43,6 @@ def new_thread_id() -> str:
     return uuid.uuid4().hex
 
 
-def message_text(message: BaseMessage | Any) -> str:
-    content = getattr(message, "content", message)
-    if isinstance(content, str):
-        return content.strip()
-    parts: list[str] = []
-    for block in content or []:
-        if isinstance(block, dict) and block.get("type", "text") == "text":
-            parts.append(str(block.get("text", "")))
-        elif isinstance(block, str):
-            parts.append(block)
-    return "\n".join(part for part in parts if part).strip()
-
-
-def _last_human_index(messages: list[BaseMessage]) -> int:
-    start = 0
-    for index, message in enumerate(messages):
-        if isinstance(message, HumanMessage):
-            start = index
-    return start
-
-
-def _tool_messages(messages: list[BaseMessage]) -> list[ToolMessage]:
-    return [
-        message
-        for message in messages[_last_human_index(messages) :]
-        if isinstance(message, ToolMessage)
-    ]
-
-
 def _format_tool_result(message: ToolMessage) -> str:
     """Trasforma il risultato di un tool in testo leggibile per la risposta."""
     name = str(message.name or "tool")
@@ -83,27 +55,6 @@ def _format_tool_result(message: ToolMessage) -> str:
         else:
             text = str(payload.get("contesto") or text)
     return f"Tool: {name}\n{text}"
-
-
-def _sources_from_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
-    """Raccoglie le fonti restituite dai tool di policy nell'ultimo turno."""
-    start = _last_human_index(messages)
-    sources: list[dict[str, Any]] = []
-    seen: set[tuple[str, str]] = set()
-    for message in messages[start:]:
-        if not isinstance(message, ToolMessage):
-            continue
-        try:
-            payload = json.loads(message.content or "{}")
-        except (json.JSONDecodeError, TypeError):
-            continue
-        for source in payload.get("fonti") or []:
-            key = (str(source.get("source", "")), str(source.get("chunk_id", "")))
-            if key in seen:
-                continue
-            seen.add(key)
-            sources.append(source)
-    return sources[:6]
 
 
 def build_graph(
@@ -154,7 +105,7 @@ def build_graph(
                 request = message_text(message)
                 break
         results = "\n\n".join(
-            _format_tool_result(message) for message in _tool_messages(messages)
+            _format_tool_result(message) for message in tool_messages(messages)
         )
         response = final_model.invoke(
             [
@@ -171,7 +122,7 @@ def build_graph(
 
     def finalize(state: SupportState) -> dict[str, Any]:
         messages = list(state["messages"])
-        start = _last_human_index(messages)
+        start = last_human_index(messages)
         answer = ""
         # Solo il turno corrente: una risposta vuota non deve mai far
         # riemergere l'answer del turno precedente.
@@ -185,7 +136,7 @@ def build_graph(
                 "Non ho potuto completare la richiesta. Posso aprire un ticket "
                 "per un operatore."
             )
-        sources = _sources_from_messages(messages)
+        sources = sources_from_messages(messages)
         tool_names = [
             str(message.name)
             for message in messages[start:]

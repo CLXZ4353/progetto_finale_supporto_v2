@@ -36,6 +36,7 @@ from supporto.config import (  # noqa: E402
 from supporto.memory import PreferenceMemory  # noqa: E402
 from supporto.models import is_model_visible, list_local_models  # noqa: E402
 from supporto.support_data import build_support_data  # noqa: E402
+from supporto.turns import message_text  # noqa: E402
 
 st.set_page_config(
     page_title="Casa & Regali - Assistenza",
@@ -323,17 +324,12 @@ def render_messages() -> None:
     last_assistant_text = ""
     for message in messages:
         role = getattr(message, "type", "")
-        content = getattr(message, "content", "")
-        if isinstance(content, list):
-            content = " ".join(
-                str(part.get("text", "")) if isinstance(part, dict) else str(part)
-                for part in content
-            ).strip()
+        content = message_text(message)
         if role == "human":
             with st.chat_message("user"):
-                st.markdown(str(content))
-        elif role == "ai" and str(content).strip():
-            last_assistant_text = str(content).strip()
+                st.markdown(content)
+        elif role == "ai" and content:
+            last_assistant_text = content
             with st.chat_message("assistant"):
                 st.markdown(last_assistant_text)
     # Se il modello ha restituito un messaggio vuoto, mostra almeno il

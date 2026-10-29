@@ -35,6 +35,7 @@ from supporto.audit import AuditLedger  # noqa: E402
 from supporto.config import get_settings  # noqa: E402
 from supporto.memory import PreferenceMemory  # noqa: E402
 from supporto.support_data import build_support_data  # noqa: E402
+from supporto.turns import tool_names  # noqa: E402
 
 from scenarios import SCENARIOS  # noqa: E402
 
@@ -52,19 +53,6 @@ def check_groups(text: str, groups: list[list[str]] | None) -> list[str]:
         "manca: " + " | ".join(group)
         for group in groups or []
         if not any(norm(alternative) in normalized for alternative in group)
-    ]
-
-
-def tool_names(state: dict) -> list[str]:
-    messages = state.get("messages") or []
-    start = 0
-    for index, message in enumerate(messages):
-        if getattr(message, "type", "") == "human":
-            start = index
-    return [
-        str(message.name)
-        for message in messages[start:]
-        if getattr(message, "type", "") == "tool" and getattr(message, "name", "")
     ]
 
 
@@ -133,7 +121,7 @@ def run_scenario(scenario: dict, settings) -> dict:
         result = start_turn(graph, thread_id, scenario["customer"], scenario["message"])
         state = state_values(graph, thread_id)
         pending = pending_interrupt(result)
-        tools = tool_names(state)
+        tools = tool_names(state.get("messages") or [])
         failures: list[str] = []
 
         expected_interrupt = scenario.get("interrupt")
@@ -163,14 +151,14 @@ def run_scenario(scenario: dict, settings) -> dict:
             }
             result = resume_turn(graph, thread_id, decision)
             state = state_values(graph, thread_id)
-            tools = tool_names(state)
+            tools = tool_names(state.get("messages") or [])
             final_answer = state.get("final_answer", "")
             pending_after = pending_interrupt(result)
             if pending_after:
                 failures.append(f"interrupt inatteso dopo l'approvazione: {pending_after.get('type')}")
             refund_executed = len(ledger.refunds()) > initial_refunds
 
-        tools = tool_names(state)
+        tools = tool_names(state.get("messages") or [])
         missing = [name for name in scenario.get("tools") or [] if name not in tools]
         if missing:
             failures.append(f"tool attesi mancanti: {missing}; usati: {tools}")
