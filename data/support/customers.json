@@ -1,0 +1,502 @@
+[
+  {
+    "customer_id": "C-001",
+    "name": "Giulia Esposito",
+    "email": "giulia.esposito@example.it",
+    "phone": "+39 333 0000001",
+    "tier": "vip",
+    "preferred_contact": "telefono",
+    "city": "Milano",
+    "joined": "2023-01-01"
+  },
+  {
+    "customer_id": "C-002",
+    "name": "Marco Gallo",
+    "email": "marco.gallo@example.it",
+    "phone": "+39 333 0000002",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Roma",
+    "joined": "2024-02-02"
+  },
+  {
+    "customer_id": "C-003",
+    "name": "Elena Lombardi",
+    "email": "elena.lombardi@example.it",
+    "phone": "+39 333 0000003",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Torino",
+    "joined": "2025-03-03"
+  },
+  {
+    "customer_id": "C-004",
+    "name": "Luca Caruso",
+    "email": "luca.caruso@example.it",
+    "phone": "+39 333 0000004",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Bologna",
+    "joined": "2023-04-04"
+  },
+  {
+    "customer_id": "C-005",
+    "name": "Sara Martinelli",
+    "email": "sara.martinelli@example.it",
+    "phone": "+39 333 0000005",
+    "tier": "vip",
+    "preferred_contact": "email",
+    "city": "Firenze",
+    "joined": "2024-05-05"
+  },
+  {
+    "customer_id": "C-006",
+    "name": "Andrea Marchetti",
+    "email": "andrea.marchetti@example.it",
+    "phone": "+39 333 0000006",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Napoli",
+    "joined": "2025-06-06"
+  },
+  {
+    "customer_id": "C-007",
+    "name": "Chiara Bianco",
+    "email": "chiara.bianco@example.it",
+    "phone": "+39 333 0000007",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Padova",
+    "joined": "2023-07-07"
+  },
+  {
+    "customer_id": "C-008",
+    "name": "Matteo Ferrari",
+    "email": "matteo.ferrari@example.it",
+    "phone": "+39 333 0000008",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Genova",
+    "joined": "2024-08-08"
+  },
+  {
+    "customer_id": "C-009",
+    "name": "Francesca Bruno",
+    "email": "francesca.bruno@example.it",
+    "phone": "+39 333 0000009",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Milano",
+    "joined": "2025-09-09"
+  },
+  {
+    "customer_id": "C-010",
+    "name": "Davide Rizzo",
+    "email": "davide.rizzo@example.it",
+    "phone": "+39 333 0000010",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Roma",
+    "joined": "2023-10-10"
+  },
+  {
+    "customer_id": "C-011",
+    "name": "Alessia Rinaldi",
+    "email": "alessia.rinaldi@example.it",
+    "phone": "+39 333 0000011",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Torino",
+    "joined": "2024-11-11"
+  },
+  {
+    "customer_id": "C-012",
+    "name": "Simone Gentile",
+    "email": "simone.gentile@example.it",
+    "phone": "+39 333 0000012",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Bologna",
+    "joined": "2025-12-12"
+  },
+  {
+    "customer_id": "C-013",
+    "name": "Marta D'Angelo",
+    "email": "marta.dangelo@example.it",
+    "phone": "+39 333 0000013",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Firenze",
+    "joined": "2023-01-13"
+  },
+  {
+    "customer_id": "C-014",
+    "name": "Federico Fabbri",
+    "email": "federico.fabbri@example.it",
+    "phone": "+39 333 0000014",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Napoli",
+    "joined": "2024-02-14"
+  },
+  {
+    "customer_id": "C-015",
+    "name": "Valentina Rossi",
+    "email": "valentina.rossi@example.it",
+    "phone": "+39 333 0000015",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Padova",
+    "joined": "2025-03-15"
+  },
+  {
+    "customer_id": "C-016",
+    "name": "Stefano Greco",
+    "email": "stefano.greco@example.it",
+    "phone": "+39 333 0000016",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Genova",
+    "joined": "2023-04-16"
+  },
+  {
+    "customer_id": "C-017",
+    "name": "Silvia Mancini",
+    "email": "silvia.mancini@example.it",
+    "phone": "+39 333 0000017",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Milano",
+    "joined": "2024-05-17"
+  },
+  {
+    "customer_id": "C-018",
+    "name": "Riccardo Mariani",
+    "email": "riccardo.mariani@example.it",
+    "phone": "+39 333 0000018",
+    "tier": "vip",
+    "preferred_contact": "email",
+    "city": "Roma",
+    "joined": "2025-06-18"
+  },
+  {
+    "customer_id": "C-019",
+    "name": "Anna Longo",
+    "email": "anna.longo@example.it",
+    "phone": "+39 333 0000019",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Torino",
+    "joined": "2023-07-19"
+  },
+  {
+    "customer_id": "C-020",
+    "name": "Paolo De Santis",
+    "email": "paolo.desantis@example.it",
+    "phone": "+39 333 0000020",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Bologna",
+    "joined": "2024-08-20"
+  },
+  {
+    "customer_id": "C-021",
+    "name": "Beatrice Ferri",
+    "email": "beatrice.ferri@example.it",
+    "phone": "+39 333 0000021",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Firenze",
+    "joined": "2025-09-21"
+  },
+  {
+    "customer_id": "C-022",
+    "name": "Giorgio Bianchi",
+    "email": "giorgio.bianchi@example.it",
+    "phone": "+39 333 0000022",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Napoli",
+    "joined": "2023-10-22"
+  },
+  {
+    "customer_id": "C-023",
+    "name": "Ilaria Marino",
+    "email": "ilaria.marino@example.it",
+    "phone": "+39 333 0000023",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Padova",
+    "joined": "2024-11-23"
+  },
+  {
+    "customer_id": "C-024",
+    "name": "Nicola Giordano",
+    "email": "nicola.giordano@example.it",
+    "phone": "+39 333 0000024",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Genova",
+    "joined": "2025-12-24"
+  },
+  {
+    "customer_id": "C-025",
+    "name": "Laura Santoro",
+    "email": "laura.santoro@example.it",
+    "phone": "+39 333 0000025",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Milano",
+    "joined": "2023-01-25"
+  },
+  {
+    "customer_id": "C-026",
+    "name": "Fabio Leone",
+    "email": "fabio.leone@example.it",
+    "phone": "+39 333 0000026",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Roma",
+    "joined": "2024-02-26"
+  },
+  {
+    "customer_id": "C-027",
+    "name": "Serena Coppola",
+    "email": "serena.coppola@example.it",
+    "phone": "+39 333 0000027",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Torino",
+    "joined": "2025-03-27"
+  },
+  {
+    "customer_id": "C-028",
+    "name": "Michele Ferraro",
+    "email": "michele.ferraro@example.it",
+    "phone": "+39 333 0000028",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Bologna",
+    "joined": "2023-04-01"
+  },
+  {
+    "customer_id": "C-029",
+    "name": "Alice Messina",
+    "email": "alice.messina@example.it",
+    "phone": "+39 333 0000029",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Firenze",
+    "joined": "2024-05-02"
+  },
+  {
+    "customer_id": "C-030",
+    "name": "Roberto Ricci",
+    "email": "roberto.ricci@example.it",
+    "phone": "+39 333 0000030",
+    "tier": "vip",
+    "preferred_contact": "email",
+    "city": "Napoli",
+    "joined": "2025-06-03"
+  },
+  {
+    "customer_id": "C-031",
+    "name": "Camilla Costa",
+    "email": "camilla.costa@example.it",
+    "phone": "+39 333 0000031",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Padova",
+    "joined": "2023-07-04"
+  },
+  {
+    "customer_id": "C-032",
+    "name": "Antonio Fontana",
+    "email": "antonio.fontana@example.it",
+    "phone": "+39 333 0000032",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Genova",
+    "joined": "2024-08-05"
+  },
+  {
+    "customer_id": "C-033",
+    "name": "Federica Martini",
+    "email": "federica.martini@example.it",
+    "phone": "+39 333 0000033",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Milano",
+    "joined": "2025-09-06"
+  },
+  {
+    "customer_id": "C-034",
+    "name": "Enrico Serra",
+    "email": "enrico.serra@example.it",
+    "phone": "+39 333 0000034",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Roma",
+    "joined": "2023-10-07"
+  },
+  {
+    "customer_id": "C-035",
+    "name": "Cristina Conte",
+    "email": "cristina.conte@example.it",
+    "phone": "+39 333 0000035",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Torino",
+    "joined": "2024-11-08"
+  },
+  {
+    "customer_id": "C-036",
+    "name": "Massimo Valentini",
+    "email": "massimo.valentini@example.it",
+    "phone": "+39 333 0000036",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Bologna",
+    "joined": "2025-12-09"
+  },
+  {
+    "customer_id": "C-037",
+    "name": "Sofia Colombo",
+    "email": "sofia.colombo@example.it",
+    "phone": "+39 333 0000037",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Firenze",
+    "joined": "2023-01-10"
+  },
+  {
+    "customer_id": "C-038",
+    "name": "Pietro De Luca",
+    "email": "pietro.deluca@example.it",
+    "phone": "+39 333 0000038",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Napoli",
+    "joined": "2024-02-11"
+  },
+  {
+    "customer_id": "C-039",
+    "name": "Greta Barbieri",
+    "email": "greta.barbieri@example.it",
+    "phone": "+39 333 0000039",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Padova",
+    "joined": "2025-03-12"
+  },
+  {
+    "customer_id": "C-040",
+    "name": "Claudio Galli",
+    "email": "claudio.galli@example.it",
+    "phone": "+39 333 0000040",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Genova",
+    "joined": "2023-04-13"
+  },
+  {
+    "customer_id": "C-041",
+    "name": "Noemi Lombardo",
+    "email": "noemi.lombardo@example.it",
+    "phone": "+39 333 0000041",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Milano",
+    "joined": "2024-05-14"
+  },
+  {
+    "customer_id": "C-042",
+    "name": "Alberto Villa",
+    "email": "alberto.villa@example.it",
+    "phone": "+39 333 0000042",
+    "tier": "vip",
+    "preferred_contact": "email",
+    "city": "Roma",
+    "joined": "2025-06-15"
+  },
+  {
+    "customer_id": "C-043",
+    "name": "Irene Grasso",
+    "email": "irene.grasso@example.it",
+    "phone": "+39 333 0000043",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Torino",
+    "joined": "2023-07-16"
+  },
+  {
+    "customer_id": "C-044",
+    "name": "Daniele Romano",
+    "email": "daniele.romano@example.it",
+    "phone": "+39 333 0000044",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Bologna",
+    "joined": "2024-08-17"
+  },
+  {
+    "customer_id": "C-045",
+    "name": "Veronica Conti",
+    "email": "veronica.conti@example.it",
+    "phone": "+39 333 0000045",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Firenze",
+    "joined": "2025-09-18"
+  },
+  {
+    "customer_id": "C-046",
+    "name": "Mauro Moretti",
+    "email": "mauro.moretti@example.it",
+    "phone": "+39 333 0000046",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Napoli",
+    "joined": "2023-10-19"
+  },
+  {
+    "customer_id": "C-047",
+    "name": "Elisa Ferrara",
+    "email": "elisa.ferrara@example.it",
+    "phone": "+39 333 0000047",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Padova",
+    "joined": "2024-11-20"
+  },
+  {
+    "customer_id": "C-048",
+    "name": "Tommaso Vitale",
+    "email": "tommaso.vitale@example.it",
+    "phone": "+39 333 0000048",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Genova",
+    "joined": "2025-12-21"
+  },
+  {
+    "customer_id": "C-049",
+    "name": "Rebecca Parisi",
+    "email": "rebecca.parisi@example.it",
+    "phone": "+39 333 0000049",
+    "tier": "standard",
+    "preferred_contact": "telefono",
+    "city": "Milano",
+    "joined": "2023-01-22"
+  },
+  {
+    "customer_id": "C-050",
+    "name": "Gabriele Marini",
+    "email": "gabriele.marini@example.it",
+    "phone": "+39 333 0000050",
+    "tier": "standard",
+    "preferred_contact": "email",
+    "city": "Roma",
+    "joined": "2024-02-23"
+  }
+]

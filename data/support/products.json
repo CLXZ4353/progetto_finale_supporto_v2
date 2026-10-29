@@ -1,0 +1,222 @@
+[
+  {
+    "product_id": "P-001",
+    "name": "Candela profumata Vaniglia",
+    "category": "casa",
+    "price": 24.9,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-002",
+    "name": "Vaso in ceramica Bianco",
+    "category": "complementi",
+    "price": 39.9,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-003",
+    "name": "Plaid in lana Grigio",
+    "category": "tessili",
+    "price": 49.9,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-004",
+    "name": "Diffusore ambiente Legno",
+    "category": "casa",
+    "price": 32.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-005",
+    "name": "Cuscino decorativo Foglia",
+    "category": "tessili",
+    "price": 29.9,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-006",
+    "name": "Cornice in legno Natura",
+    "category": "complementi",
+    "price": 22.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-007",
+    "name": "Candela profumata Cannella",
+    "category": "casa",
+    "price": 15.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-008",
+    "name": "Set tovagliette Lino",
+    "category": "tessili",
+    "price": 34.5,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-009",
+    "name": "Lampada da tavolo Aurora",
+    "category": "complementi",
+    "price": 189.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-010",
+    "name": "Tazza personalizzata con nome",
+    "category": "personalizzato",
+    "price": 18.9,
+    "personalized": true,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-011",
+    "name": "Lampada da terra Luna",
+    "category": "complementi",
+    "price": 749.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-012",
+    "name": "Set skincare Delicato",
+    "category": "igiene",
+    "price": 27.5,
+    "personalized": false,
+    "hygiene": true,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-013",
+    "name": "Buono regalo digitale 25 EUR",
+    "category": "digitale",
+    "price": 25.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": true,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-014",
+    "name": "Cesto regalo Primavera",
+    "category": "casa",
+    "price": 59.9,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-015",
+    "name": "Sciarpa in seta Blu",
+    "category": "tessili",
+    "price": 44.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-016",
+    "name": "Orologio da parete Minimal",
+    "category": "complementi",
+    "price": 65.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 24
+  },
+  {
+    "product_id": "P-017",
+    "name": "Set candele Aroma",
+    "category": "casa",
+    "price": 36.0,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-018",
+    "name": "Runner tavola Ricamo",
+    "category": "tessili",
+    "price": 28.5,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": true,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-019",
+    "name": "Portafoto personalizzato",
+    "category": "personalizzato",
+    "price": 26.9,
+    "personalized": true,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  },
+  {
+    "product_id": "P-020",
+    "name": "Kit piante aromatiche",
+    "category": "casa",
+    "price": 31.9,
+    "personalized": false,
+    "hygiene": false,
+    "digital": false,
+    "final_sale": false,
+    "warranty_months": 0
+  }
+]

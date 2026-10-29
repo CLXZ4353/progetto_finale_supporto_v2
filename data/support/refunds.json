@@ -1,0 +1,46 @@
+{
+  "ORD-1004": {
+    "refund_id": "RMB-2026-1004",
+    "order_id": "ORD-1004",
+    "customer_id": "C-002",
+    "amount": 36.9,
+    "currency": "EUR",
+    "reason": "Reso entro i termini, articolo integro.",
+    "approved_by": "operatore-demo",
+    "approved_at": "2026-10-20T10:00:00",
+    "status": "eseguito"
+  },
+  "ORD-1010": {
+    "refund_id": "RMB-2026-1010",
+    "order_id": "ORD-1010",
+    "customer_id": "C-037",
+    "amount": 149.7,
+    "currency": "EUR",
+    "reason": "Rimborso storico (dati demo).",
+    "approved_by": "operatore-demo",
+    "approved_at": "2026-09-08T15:30:00",
+    "status": "eseguito"
+  },
+  "ORD-1178": {
+    "refund_id": "RMB-2026-1178",
+    "order_id": "ORD-1178",
+    "customer_id": "C-015",
+    "amount": 100.8,
+    "currency": "EUR",
+    "reason": "Rimborso storico (dati demo).",
+    "approved_by": "operatore-demo",
+    "approved_at": "2026-09-26T15:30:00",
+    "status": "eseguito"
+  },
+  "ORD-1200": {
+    "refund_id": "RMB-2026-1200",
+    "order_id": "ORD-1200",
+    "customer_id": "C-044",
+    "amount": 119.0,
+    "currency": "EUR",
+    "reason": "Rimborso storico (dati demo).",
+    "approved_by": "operatore-demo",
+    "approved_at": "2026-08-25T15:30:00",
+    "status": "eseguito"
+  }
+}

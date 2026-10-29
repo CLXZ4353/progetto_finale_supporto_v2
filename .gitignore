@@ -1,0 +1,20 @@
+# Ambiente locale
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Segreti e configurazione locale
+.env
+.env.*
+!.env.example
+
+# Log e file temporanei
+logs/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
