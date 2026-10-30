@@ -141,7 +141,7 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 - **Audit e ledger idempotente**: turni, accessi negati, rimborsi, ticket e rifiuti in `logs/audit.jsonl`.
 - **Valutazione automatica**: 31 scenari con tool attesi e vietati, fonti, HITL, scritture e assenza di effetti collaterali.
 - **CLI** con gli stessi flussi della UI e **selettore del modello**.
-- **Documento tecnico** di 9 pagine e **presentazione** di 12 slide, generati dagli stessi dati.
+- **Relazione tecnica** di 4 pagine e **presentazione** di 12 slide, generate dagli stessi dati.
 
 Questi extra non sostituiscono i minimi: li rendono verificabili.
 
@@ -417,8 +417,7 @@ progetto_finale_supporto_v2/
 │  └─ support/*.json          dati demo sintetici
 ├─ docs/
 │  ├─ architettura.png        diagramma del flusso
-│  ├─ documento_tecnico.pdf   documento tecnico (9 pagine)
-│  ├─ report_tecnico.pdf      report breve (4 pagine)
+│  ├─ report_tecnico.pdf      relazione tecnica (4 pagine)
 │  ├─ valutazione_v2.png      grafico delle run
 │  └─ presentazione_v2.pptx   presentazione (12 slide)
 ├─ eval/
@@ -428,8 +427,7 @@ progetto_finale_supporto_v2/
 ├─ scripts/
 │  ├─ reset_demo.py           ripristino dati
 │  ├─ make_architecture.py    diagramma
-│  ├─ make_documento_tecnico.py
-│  ├─ make_report.py          report PDF
+│  ├─ make_report.py          relazione PDF
 │  └─ make_presentazione.py   presentazione PPTX
 ├─ src/supporto/
 │  ├─ agent.py                grafo e turni
@@ -453,7 +451,6 @@ I PDF e il PPTX si rigenerano dai risultati reali con:
 
 ```powershell
 python scripts/make_architecture.py
-python scripts/make_documento_tecnico.py
 python scripts/make_report.py
 python scripts/make_presentazione.py
 ```
