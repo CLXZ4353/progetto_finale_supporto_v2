@@ -417,7 +417,7 @@ progetto_finale_supporto_v2/
 │  └─ support/*.json          dati demo sintetici
 ├─ docs/
 │  ├─ architettura.png        diagramma del flusso
-│  ├─ report_tecnico.pdf      relazione tecnica (4 pagine)
+│  ├─ relazione_tecnica.pdf   relazione tecnica (4 pagine)
 │  ├─ valutazione_v2.png      grafico delle run
 │  └─ presentazione_v2.pptx   presentazione (12 slide)
 ├─ eval/

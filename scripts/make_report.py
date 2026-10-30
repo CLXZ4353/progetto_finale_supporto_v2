@@ -26,7 +26,7 @@ import doc_common as dc
 P = dc.P
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "docs" / "report_tecnico.pdf"
+OUT = ROOT / "docs" / "relazione_tecnica.pdf"
 CHART = ROOT / "docs" / "valutazione_v2.png"
 
 final = dc.load_final()
