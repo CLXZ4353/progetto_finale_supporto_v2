@@ -8,15 +8,6 @@ from langchain_openai import ChatOpenAI
 
 from .config import Settings, get_settings
 
-# BF16 non usato; il Llama 3B meta-llama è sostituito da unsloth.
-HIDDEN_MODEL_MARKERS = ("bf16", "meta-llama/llama-3.2-3b")
-
-
-def is_model_visible(model_id: str) -> bool:
-    """True se il modello può comparire nel selettore della UI."""
-    return not any(marker in str(model_id).lower() for marker in HIDDEN_MODEL_MARKERS)
-
-
 def is_lfm3(model_id: str) -> bool:
     """True per LFM3, l'unico modello con reasoning controllabile qui."""
     return "lfm3" in str(model_id).lower()
@@ -26,9 +17,8 @@ def dedupe_models(models: list[str], *, preferred: str | None = None) -> list[st
     """Un alias per modello; `preferred` sostituisce quello esposto."""
     options: dict[str, str] = {}
     for model in models:
-        if is_model_visible(model):
-            options.setdefault(str(model).split("@", 1)[0].lower(), str(model))
-    if preferred and is_model_visible(preferred):
+        options.setdefault(str(model).split("@", 1)[0].lower(), str(model))
+    if preferred:
         family = str(preferred).split("@", 1)[0].lower()
         if family in options:
             options[family] = str(preferred)
@@ -103,11 +93,7 @@ def list_local_models(settings: Settings | None = None, timeout: float = 2.0) ->
             else:
                 items = [item for item in items if item.get("id")]
                 items.sort(key=lambda item: str(item["id"]))
-            return [
-                str(item["id"])
-                for item in items
-                if item.get("id") and is_model_visible(str(item["id"]))
-            ]
+            return [str(item["id"]) for item in items if item.get("id")]
         except Exception:  # noqa: BLE001 - il server locale può essere spento
             continue
     return []
