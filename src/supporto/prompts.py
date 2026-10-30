@@ -4,8 +4,8 @@
 Tecniche di prompting (Laboratorio 2):
 - ruolo e vincoli espliciti;
 - few-shot: esempi di scelta del tool e di risposta diretta;
-- output strutturato: i tool hanno schemi Pydantic, quindi il modello non può
-  inventare campi o formati.
+- output strutturato: i tool hanno uno schema degli argomenti generato da
+  LangChain, quindi il modello non può inventare campi o formati.
 
 Il prompt di scelta è volutamente breve: con modelli locali da 1-3B, poche
 regole chiare sono più affidabili di un elenco lungo (verificato nei test live).
