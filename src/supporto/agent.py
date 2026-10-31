@@ -25,9 +25,15 @@ from .audit import AuditLedger
 from .config import Settings, get_settings
 from .memory import PreferenceMemory
 from .models import final_reasoning_effort, get_chat_model
-from .prompts import FINAL_ANSWER_PROMPT, SYSTEM_PROMPT
+from .prompts import SYSTEM_PROMPT, final_answer_prompt
 from .tools import make_tools
-from .turns import last_human_index, message_text, sources_from_messages, tool_messages
+from .turns import (
+    extract_answer,
+    last_human_index,
+    message_text,
+    sources_from_messages,
+    tool_messages,
+)
 
 RECURSION_LIMIT = 20
 
@@ -101,12 +107,14 @@ def build_graph(
             if isinstance(message, HumanMessage):
                 request = message_text(message)
                 break
+        results_messages = tool_messages(messages)
         results = "\n\n".join(
-            _format_tool_result(message) for message in tool_messages(messages)
+            _format_tool_result(message) for message in results_messages
         )
+        tool_name = str(results_messages[-1].name) if results_messages else None
         response = final_model.invoke(
             [
-                SystemMessage(content=FINAL_ANSWER_PROMPT),
+                SystemMessage(content=final_answer_prompt(tool_name)),
                 HumanMessage(
                     content=(
                         f"Richiesta del cliente: {request}\n\n"
@@ -114,6 +122,11 @@ def build_graph(
                     )
                 ),
             ]
+        )
+        # Il modello può aggiungere ragionamento fuori dal blocco <risposta>:
+        # il codice lo scarta prima di salvare e mostrare la risposta.
+        response = response.model_copy(
+            update={"content": extract_answer(message_text(response))}
         )
         return {"messages": [response]}
 
@@ -125,7 +138,7 @@ def build_graph(
         # riemergere l'answer del turno precedente.
         for message in reversed(messages[start:]):
             if isinstance(message, AIMessage) and not getattr(message, "tool_calls", None):
-                answer = message_text(message)
+                answer = extract_answer(message_text(message))
                 if answer:
                     break
         if not answer:

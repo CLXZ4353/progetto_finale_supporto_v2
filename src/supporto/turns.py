@@ -8,6 +8,7 @@ funzioni evitano che ogni punto del progetto reimplementi la stessa logica.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
@@ -47,6 +48,21 @@ def last_human_text(messages: list[BaseMessage]) -> str:
         if isinstance(message, HumanMessage):
             return message_text(message)
     return ""
+
+
+def extract_answer(text: str) -> str:
+    """Estrae il blocco <risposta>...</risposta>; senza tag lascia il testo.
+
+    Il modello può aggiungere ragionamento fuori dal blocco: il codice lo
+    scarta prima di mostrare la risposta al cliente.
+    """
+    raw = (text or "").strip()
+    match = re.search(
+        r"<risposta>(.*?)(?:</risposta>|$)", raw, flags=re.IGNORECASE | re.DOTALL
+    )
+    if match:
+        return match.group(1).strip()
+    return raw
 
 
 def tool_messages(messages: list[BaseMessage]) -> list[ToolMessage]:

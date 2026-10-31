@@ -427,7 +427,7 @@ add_text(
     size=14, bold=True, color=BROWN_DARK, anchor=MSO_ANCHOR.MIDDLE,
 )
 add_footer(slide, 2)
-add_notes(slide, "Sottolineare la separazione tra decisione (LLM) ed esecuzione vincolata (tool + policy).")
+add_notes(slide, "Sottolineare la separazione tra decisione (LLM) ed esecuzione vincolata (tool + policy). Il prompt finale è specifico per tool e chiede un blocco <risposta>: il codice estrae solo quel blocco, così il ragionamento del modello non arriva al cliente.")
 
 # ---------------------------------------------------------------------------
 # 3. Da estesa a v2
@@ -703,7 +703,7 @@ slide = prs.slides.add_slide(BLANK)
 set_bg(slide)
 add_title_block(slide, "Qualità", "Test e riproducibilità", "La suite automatica non richiede LM Studio; la valutazione sì.")
 add_card(
-    slide, 0.6, 1.75, 4.0, 3.3, "57 test", "", accent=GREEN, fill=LIGHT_GREEN, body_size=12.5,
+    slide, 0.6, 1.75, 4.0, 3.3, "60 test", "", accent=GREEN, fill=LIGHT_GREEN, body_size=12.5,
     body_lines=[
         "ScriptedModel, nessuna rete",
         "Grafo, HITL, privacy, memoria",

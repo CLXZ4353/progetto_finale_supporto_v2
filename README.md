@@ -11,11 +11,11 @@ Il grafo del turno usa **LangChain** e **LangGraph**, il retrieval è **BM25** s
 | Metrica | Valore |
 |---|---|
 | Scenari superati con LFM3 | **31/31** |
-| Test automatici | **57** |
+| Test automatici | **60** |
 | Tool | **7** |
 | Documenti nel corpus | **10** |
 | Nodi del grafo | **4** |
-| Latenza media LFM3 | **5,08 s** |
+| Latenza media LFM3 | **3,72 s** |
 
 ---
 
@@ -97,7 +97,7 @@ Le decisioni che contano non sono quelle che aggiungono componenti, ma quelle ch
 | HITL dentro `proponi_rimborso` | Nodo di approvazione separato nel grafo | Proposta e approvazione restano nello stesso punto; un nodo separato lascerebbe altri percorsi di scrittura. Il ledger rivalida comunque cliente, importo e duplicati. | Rimborso pulito 100% |
 | BM25 | Chroma con embedding | Dieci documenti brevi e un lessico stabile: BM25 è deterministico, non richiede indice né modello di embedding e rende le fonti verificabili. | Source hit 100% sui 9 scenari informativi |
 | Nessun fallback deterministico | Risposta di riserva quando il modello sbaglia | Un fallback nasconderebbe il comportamento reale e renderebbe la valutazione meno onesta. Gli errori restano visibili nella failure gallery. | Llama 24/31, errori non mascherati |
-| LFM3 come default | Llama 3.2 3B Unsloth, più veloce | LFM3 chiude 31/31; Llama si ferma a 24/31, soprattutto su sicurezza e fonti. La latenza più alta è il prezzo dell'affidabilità. | 31/31 vs 24/31; 5,08 s vs 1,93 s |
+| LFM3 come default | Llama 3.2 3B Unsloth, più veloce | LFM3 chiude 31/31; Llama si ferma a 24/31, soprattutto su sicurezza e fonti. La latenza più alta è il prezzo dell'affidabilità. | 31/31 vs 24/31; 3,72 s vs 1,93 s |
 | Eval custom e audit JSONL | LangSmith | La suite è piccola e il progetto deve restare riproducibile senza account esterni; il JSONL copre turni, privacy, rimborsi e ticket. | 31 scenari, failure gallery, audit |
 
 ### Perché queste tecniche di prompting
@@ -108,7 +108,7 @@ Il system prompt usa tre tecniche, scelte per un modello piccolo:
 - **few-shot**: esempi di scelta del tool e di risposta diretta, per ancorare il formato e ridurre le deviazioni;
 - **output strutturato**: lo schema degli argomenti è generato da LangChain a partire dalle annotazioni dei tool, quindi il modello non può inventare campi o formati.
 
-Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiare sono più affidabili di un elenco lungo. Il prompt della risposta finale riceve solo la richiesta del cliente e gli esiti dei tool, vieta calcoli e dati inventati, e non può avviare altre azioni.
+Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiare sono più affidabili di un elenco lungo. Il prompt della risposta finale riceve solo la richiesta del cliente e gli esiti dei tool, vieta calcoli e dati inventati, e non può avviare altre azioni. Cambia in base al tool eseguito: un'istruzione mirata (2-4 frasi, dati essenziali) riduce le divagazioni rispetto a un'unica checklist valida per tutti i casi. Il modello deve scrivere la risposta tra `<risposta>` e `</risposta>`; `extract_answer()` in `turns.py` scarta tutto ciò che sta fuori dal blocco, così l'eventuale ragionamento non arriva al cliente. Se i tag mancano, il testo resta invariato per non perdere una risposta valida.
 
 ---
 
@@ -263,7 +263,7 @@ START → agent → tools → respond → finalize → END
 
 - **`agent`**: l'LLM riceve system prompt e conversazione, e sceglie un tool oppure risponde direttamente.
 - **`tools`**: `ToolNode` esegue il tool scelto. I tool leggono i dati del cliente dal runtime; il modello non può indicare un cliente diverso.
-- **`respond`**: secondo passo LLM **senza tool**. Riceve la richiesta del cliente e gli esiti dei tool, e scrive la risposta finale. Non può avviare altre azioni.
+- **`respond`**: secondo passo LLM **senza tool**. Riceve la richiesta del cliente e gli esiti dei tool, e scrive la risposta finale con un prompt specifico per il tool. Il codice estrae il blocco `<risposta>` e salva solo quello. Non può avviare altre azioni.
 - **`finalize`**: salva risposta, fonti e tool usati, e scrive il turno nell'audit.
 
 Se non serve un tool, il percorso è `agent → finalize`: l'LLM risponde direttamente (saluto, richiesta del numero d'ordine, preferenza implicita).
@@ -355,18 +355,18 @@ Ogni scenario verifica, dove previsto, tool attesi e vietati, contenuto della ri
 
 | Profilo | Scenari | Superati | Pass rate | Tool hit | Fonti | HITL | Rimborso pulito | Sicurezza | Latenza media |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| LFM3-1.7B Q4_K_M | 31 | 31 | 100% | 100% | 100% | 100% | 100% | 100% | 5,08 s |
+| LFM3-1.7B Q4_K_M | 31 | 31 | 100% | 100% | 100% | 100% | 100% | 100% | 3,72 s |
 | Llama 3.2 3B Q5_K_XL (Unsloth) | 31 | 24 | 77,4% | 96,6% | 88,9% | 100% | 100% | 66,7% | 1,93 s |
 
 Le run di riferimento sono in `eval/results/`; `latest.json` contiene l'ultima run LFM3.
 
-Confronto diretto tra le due varianti Llama 3B, con gli stessi 31 scenari, contesto 8192, `parallel 1` e due run per modello: meta-llama Q4_0 si ferma a **23/31** (1,80 s), Unsloth Q5_K_XL a **24/31** (1,88–1,93 s). Unsloth migliora tool hit (96,6% contro 93,1%), fonti (88,9% contro 77,8%) e sicurezza (66,7% contro 33,3%), ma resta sotto LFM3 e sbaglia comunque memoria e prompt injection. Il guadagno è reale ma non uniforme: LFM3 resta il default perché chiude 31/31, a costo di una latenza circa 2,7 volte più alta.
+Confronto diretto tra le due varianti Llama 3B, con gli stessi 31 scenari, contesto 8192, `parallel 1` e due run per modello: meta-llama Q4_0 si ferma a **23/31** (1,80 s), Unsloth Q5_K_XL a **24/31** (1,88–1,93 s). Unsloth migliora tool hit (96,6% contro 93,1%), fonti (88,9% contro 77,8%) e sicurezza (66,7% contro 33,3%), ma resta sotto LFM3 e sbaglia comunque memoria e prompt injection. Il guadagno è reale ma non uniforme: LFM3 resta il default perché chiude 31/31, a costo di una latenza circa 1,9 volte più alta.
 
-LFM3 è il modello predefinito: circa 2,7 volte più lento di Llama 3.2 3B (Unsloth Q5_K_XL), ma più affidabile nella scelta dei tool e nell'esposizione dei dati. Llama resta l'alternativa veloce, adatta a demo con hardware modesto.
+LFM3 è il modello predefinito: circa 1,9 volte più lento di Llama 3.2 3B (Unsloth Q5_K_XL), ma più affidabile nella scelta dei tool e nell'esposizione dei dati. Llama resta l'alternativa veloce, adatta a demo con hardware modesto.
 
 La run finale di LFM3 è **31/31** con una media di **0,94 tool per turno**. Nelle run intermedie erano emersi due fallimenti (`reso_difettoso` e `memoria_implicita`), corretti intervenendo sui prompt: il primo chiedeva al modello di citare la difettosità, il secondo di non salvare preferenze non richieste esplicitamente.
 
-**Reasoning.** Con LFM3 il reasoning attivo (variabile vuota) ha dato la migliore scelta dei tool. La risposta finale lo disattiva sempre: con la tabella completa dei 10 ordini il secondo passo arrivava a **7.058 token** e restituiva `content` vuoto con `finish_reason=length`. Disattivandolo solo lì, la run resta **31/31** e scende a **5,08 s** medi. Con `LM_STUDIO_REASONING_EFFORT=none` su tutto il grafo una run precedente si è fermata a 27/31, fallendo `info_tracking`, `escalation`, `richiesta_operatore` e `prompt_injection`: il default consigliato resta la variabile vuota.
+**Reasoning.** Con LFM3 il reasoning attivo (variabile vuota) ha dato la migliore scelta dei tool. La risposta finale lo disattiva sempre: con la tabella completa dei 10 ordini il secondo passo arrivava a **7.058 token** e restituiva `content` vuoto con `finish_reason=length`. Disattivandolo solo lì e accorciando il prompt finale per tool, la run resta **31/31** e scende a **3,72 s** medi. Con `LM_STUDIO_REASONING_EFFORT=none` su tutto il grafo una run precedente si è fermata a 27/31, fallendo `info_tracking`, `escalation`, `richiesta_operatore` e `prompt_injection`: il default consigliato resta la variabile vuota.
 
 **Metodo.** La valutazione misura il sistema così com'è: se il modello sceglie il tool sbagliato o inventa un numero, lo scenario fallisce. Non c'è una correzione a posteriori che nasconda l'errore; la failure gallery conserva risposta, tool e controlli falliti, e `eval/results/latest.json` contiene la run più recente.
 
@@ -388,7 +388,7 @@ python -m pytest -q tests
 
 I test usano un modello scriptato (`ScriptedModel`) e dati isolati: **non richiedono LM Studio** né rete. Coprono flussi del grafo, HITL, privacy, memoria, policy, corpus, ledger e scenari.
 
-Stato attuale: **57 passed**.
+Stato attuale: **60 passed**.
 
 ---
 
@@ -441,7 +441,7 @@ progetto_finale_supporto_v2/
 │  ├─ support_data.py         generazione dati demo
 │  ├─ tools.py                7 tool LangChain
 │  └─ turns.py                helper di messaggi e turni
-├─ tests/                     57 test
+├─ tests/                     60 test
 ├─ .env.example
 ├─ requirements.txt
 └─ requirements-dev.txt

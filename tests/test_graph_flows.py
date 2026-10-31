@@ -12,6 +12,7 @@ from supporto.agent import (
     start_turn,
     state_values,
 )
+from supporto.turns import message_text
 
 
 def tool_call(name: str, args: dict, call_id: str = "call-1") -> AIMessage:
@@ -38,6 +39,31 @@ def test_tool_call_poi_risposta(sandbox, scripted_graph):
     assert [m.name for m in state["messages"] if m.type == "tool"] == ["stato_ordine"]
     assert state["sources"] == []
     assert len(model.calls) == 2
+
+
+def test_risposta_finale_estrae_solo_il_blocco(sandbox, scripted_graph):
+    graph, _ = scripted_graph(
+        [
+            tool_call("stato_ordine", {"order_id": "ORD-1001"}),
+            final(
+                'Se il risultato contiene "Tracking: X", devo copiarlo. '
+                "<risposta>Il tuo ordine ORD-1001 è consegnato. "
+                "Tracking: TRK-1001-IT.</risposta>"
+            ),
+        ]
+    )
+    tid = new_thread_id()
+    start_turn(graph, tid, "C-001", "Dov'è il mio ordine ORD-1001?")
+    state = state_values(graph, tid)
+
+    expected = "Il tuo ordine ORD-1001 è consegnato. Tracking: TRK-1001-IT."
+    assert state["final_answer"] == expected
+    ai_texts = [
+        message_text(message)
+        for message in state["messages"]
+        if message.type == "ai" and message_text(message)
+    ]
+    assert ai_texts == [expected]
 
 
 def test_fonti_solo_dal_tool_di_policy(sandbox, scripted_graph):

@@ -7,6 +7,7 @@ import json
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from supporto.turns import (
+    extract_answer,
     last_human_index,
     last_human_text,
     message_text,
@@ -76,3 +77,21 @@ def test_sources_from_messages_deduplica_e_limita():
     ]
     sources = sources_from_messages(messages)
     assert sources == [fonte]
+
+
+def test_extract_answer_rimuove_il_ragionamento():
+    testo = (
+        'Se il risultato contiene "Tracking", dobbiamo copiarlo.\n'
+        "<risposta>Il tuo ordine è consegnato.</risposta>\n"
+        "Ho risposto in italiano."
+    )
+    assert extract_answer(testo) == "Il tuo ordine è consegnato."
+
+
+def test_extract_answer_senza_tag_lascia_il_testo():
+    assert extract_answer("  Il tuo ordine è consegnato.  ") == (
+        "Il tuo ordine è consegnato."
+    )
+    assert extract_answer("<risposta>Risposta senza chiusura") == (
+        "Risposta senza chiusura"
+    )

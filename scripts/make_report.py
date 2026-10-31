@@ -142,7 +142,7 @@ story.append(
         [
             (f"{fs['passed']}/{fs['total']}", "scenari superati"),
             (dc.pct(fs["tool_hit_rate"]), "tool hit rate"),
-            ("57", "test automatici"),
+            ("60", "test automatici"),
             (f"{fs['avg_latency_s']:.2f} s".replace(".", ","), "latenza media"),
         ]
     )
@@ -400,7 +400,9 @@ story.append(
         "LangChain a partire dalle annotazioni dei tool, quindi il modello non può inventare campi o "
         "formati. Il prompt di scelta è breve — con modelli da 1-3B poche regole chiare sono più "
         "affidabili di un elenco lungo — mentre il prompt finale riceve solo richiesta ed esiti, vieta "
-        "calcoli e dati inventati e non può avviare altre azioni."
+        "calcoli e dati inventati e non può avviare altre azioni. Il prompt finale cambia per tool e "
+        "chiede un blocco <font face='Courier'>&lt;risposta&gt;</font>: il codice estrae solo quel "
+        "blocco, così il ragionamento non arriva al cliente."
     )
 )
 story.append(
@@ -408,8 +410,7 @@ story.append(
         "<b>Perché non multi-agente, reflection o LangSmith.</b> Non li ho aggiunti perché il caso d'uso "
         "non li richiede: un dominio, sette tool, un turno singolo. Supervisore e reflection "
         "aggiungerebbero passaggi e latenza senza migliorare la scelta; LangSmith sarebbe un account "
-        "esterno per 31 scenari già coperti da JSON e failure gallery. La traccia premia la coerenza, "
-        "non l'accumulo di pattern."
+        "esterno per 31 scenari già coperti da JSON e failure gallery."
     )
 )
 story.append(
@@ -474,7 +475,7 @@ story.append(
         "sbagliato o inventa un numero, lo scenario fallisce. Non c'è una correzione a posteriori che "
         "nasconda l'errore; la failure gallery conserva risposta, tool e controlli falliti. La suite "
         "automatica usa un modello scriptato (<font face='Courier'>ScriptedModel</font>) e dati isolati: "
-        "<b>57 test</b> senza LM Studio né rete, a copertura di grafo, HITL, privacy, memoria, policy, "
+        "<b>60 test</b> senza LM Studio né rete, a copertura di grafo, HITL, privacy, memoria, policy, "
         "corpus, ledger e scenari.",
         "small",
     )
