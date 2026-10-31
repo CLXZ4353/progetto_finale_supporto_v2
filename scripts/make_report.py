@@ -496,8 +496,9 @@ story.append(
         "sbagliato o inventa un numero, lo scenario fallisce. Non c'è una correzione a posteriori che "
         "nasconda l'errore; la failure gallery conserva risposta, tool e controlli falliti. La suite "
         "automatica usa un modello scriptato (<font face='Courier'>ScriptedModel</font>) e dati isolati: "
-        "<b>60 test</b> senza LM Studio né rete, a copertura di grafo, HITL, privacy, memoria, policy, "
-        "corpus, ledger e scenari.",
+        "<b>60 test</b> senza LM Studio né rete, con fixture temporanee e data fissa. Coprono flussi del "
+        "grafo, tool, policy/corpus, ledger, memoria, modelli, helper e coerenza degli scenari; non "
+        "misurano la qualità del modello, che resta compito della valutazione.",
         "small",
     )
 )

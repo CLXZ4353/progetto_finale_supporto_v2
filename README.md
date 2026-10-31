@@ -382,11 +382,49 @@ I risultati sono in `eval/results/` (JSON e Markdown con failure gallery); `late
 
 ### Test automatici
 
+I test sono di **unità e integrazione**: verificano che il codice rispetti i contratti del progetto senza chiamare un modello reale. Non misurano la qualità dell'LLM — per quella c'è la suite di valutazione con LFM3 e Llama — ma impediscono che una modifica al grafo, alla policy, al ledger o ai prompt rompa un comportamento già verificato.
+
+**Come funzionano**
+
+- `tests/conftest.py` definisce le fixture condivise. `ScriptedModel` è un modello finto: restituisce le `AIMessage` preparate nell'ordine dato, registra le chiamate e implementa `bind_tools` restituendo sé stesso. Se le risposte finiscono, il test fallisce: non esiste un fallback che nasconda l'errore.
+- La fixture `sandbox` crea i sei JSON demo in una directory temporanea, imposta `DEMO_TODAY=2026-10-23`, punta i percorsi di `policy` a quei file e costruisce ledger, memoria e `Settings` isolati. Ogni test parte da dati puliti e non tocca la demo.
+- `scripted_graph` costruisce il **grafo vero** con il modello finto, il ledger e la memoria del sandbox. Si testano così i nodi, il routing, l'HITL e le scritture reali, non una loro imitazione.
+- La fixture `runtime` simula lo stato e la configurazione che `ToolRuntime` riceve nel grafo: `customer_id` e `thread_id`.
+- I test non richiedono LM Studio, non usano rete e non dipendono dall'ordine di esecuzione.
+
+**Cosa coprono**
+
+| File | Test | Cosa verifica |
+|---|---:|---|
+| `test_graph_flows.py` | 15 | Turno completo con tool, risposta senza tool, estrazione del blocco `<risposta>`, fonti, privacy, HITL, rimborso approvato/rifiutato/non idoneo, blocco del secondo rimborso, memoria breve tra turni, assenza di fallback. |
+| `test_tools.py` | 9 | Chiamata diretta dei sette tool: fonti BM25, stato ordine, stesso messaggio per ordine altrui e inesistente, elenco filtrato, casi di reso, data di `Settings`, rimborso non idoneo, rimozione PII e ticket. |
+| `test_policy_corpus.py` | 13 | Costanti della policy, coerenza numerica tra codice e documenti Markdown, filtro per cliente, albero di idoneità, calcolo dei rimborsi, chunking e retrieval BM25 su query reali. |
+| `test_audit.py` | 5 | Ledger senza approvazione, importo non coerente, cliente non coerente, idempotenza del rimborso e numerazione progressiva dei ticket. |
+| `test_memory.py` | 4 | Salvataggio e rilettura delle preferenze, duplicati, rimozione di email e telefoni, cancellazione per singolo cliente. |
+| `test_turns.py` | 6 | Testo da messaggi a blocchi, isolamento dell'ultimo turno, deduplica delle fonti, `extract_answer` con e senza tag. |
+| `test_models.py` | 5 | Riconoscimento di LFM3, deduplica degli alias, modello preferito e reasoning finale spento solo per LFM3 locale. |
+| `test_scenarios.py` | 1 | Coerenza dei 31 scenari: ID unici, clienti esistenti, tool e fonti validi, `approve` presente quando c'è un interrupt, rimborso eseguito solo con approvazione. |
+| `test_support_data.py` | 2 | I sei JSON vengono creati e la generazione è riproducibile con lo stesso seed. |
+
+In totale sono **60 test** (57 funzioni, una parametrizzata su quattro query BM25).
+
+**Esempi di ciò che viene bloccato**
+
+- Un ordine di un altro cliente e un ordine inesistente devono produrre lo stesso messaggio, senza `C-002`, nome o email, e lasciare `privacy_accesso_negato` nell'audit.
+- `proponi_rimborso` deve sospendere il turno senza scrivere; dopo l'approvazione il ledger scrive una sola volta, dopo il rifiuto non scrive nulla, e un secondo tentativo restituisce `duplicato=True`.
+- Un importo alterato o un cliente diverso nella proposta vengono rifiutati dal ledger anche se il modello o il tool li hanno prodotti.
+- Il ragionamento scritto fuori da `<risposta>` non deve arrivare al cliente.
+- I numeri di `policy.py` devono coincidere con quelli dei documenti in `data/corpus/`.
+
+**Cosa non fanno**
+
+I test non scelgono il tool al posto del modello e non misurano latenza, tool hit rate o qualità delle risposte. Queste misure appartengono alla valutazione (§12): i test verificano i vincoli deterministici, l'eval verifica il comportamento del sistema con modelli reali.
+
 ```powershell
 python -m pytest -q tests
+python -m pytest -q tests/test_graph_flows.py
+python -m pytest -q tests/test_audit.py::test_idempotenza
 ```
-
-I test usano un modello scriptato (`ScriptedModel`) e dati isolati: **non richiedono LM Studio** né rete. Coprono flussi del grafo, HITL, privacy, memoria, policy, corpus, ledger e scenari.
 
 Stato attuale: **60 passed**.
 
