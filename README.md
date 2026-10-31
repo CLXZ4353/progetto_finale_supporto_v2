@@ -406,7 +406,9 @@ Le date della demo sono ancorate a `DEMO_TODAY` (default `2026-10-23`), così gl
 
 ---
 
-## 14. Struttura e documenti
+## 14. Struttura, codice e documenti
+
+### Struttura
 
 ```
 progetto_finale_supporto_v2/
@@ -446,6 +448,91 @@ progetto_finale_supporto_v2/
 ├─ requirements.txt
 └─ requirements-dev.txt
 ```
+
+### Mappa del codice
+
+La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 spiegano il flusso e le scelte; qui ci sono i punti di codice che non si deducono dal nome di una funzione.
+
+| File | Ruolo | Dettagli da conoscere |
+|---|---|---|
+| `src/supporto/agent.py` | Grafo, stato e turno | `SupportState` contiene `messages` (reducer `add_messages`), `customer_id`, `final_answer` e `sources`. Quattro nodi: `agent`, `tools`, `respond`, `finalize`. `respond` non ha tool; `finalize` legge solo l'ultimo turno e ha un fallback se la risposta è vuota. |
+| `src/supporto/tools.py` | I sette tool | `ToolRuntime` inietta il `customer_id` dello stato: il modello non sceglie il cliente. `stato_ordine`, `verifica_reso` e `proponi_rimborso` restituiscono lo stesso messaggio per ordine inesistente o altrui. `proponi_rimborso` è l'unico tool che sospende il turno e scrive. |
+| `src/supporto/policy.py` | Regole deterministiche | Costanti di reso e rimborso; `find_order`/`list_orders` filtrati per cliente; albero di idoneità; `calculate_refund` con spedizione rimborsabile e soglia di escalation. |
+| `src/supporto/audit.py` | Audit, ticket e ledger | `log` scrive JSONL; `create_ticket` genera `TKT-2026-0001`; `execute_refund` ricontrolla approvazione, ordine, cliente, importo e duplicati prima di scrivere. |
+| `src/supporto/prompts.py` + `turns.py` | Qualità della risposta | Prompt di scelta con ruolo, few-shot e output strutturato; prompt finale per tool con contratto `<risposta>`; `extract_answer` scarta il ragionamento esterno. |
+| `src/supporto/corpus.py` | RAG BM25 | Dieci documenti, split per sezioni Markdown, chunk 650/50, sinonimi italiani, top 3 con score positivo, fonti `[S1]`–`[S3]`. |
+| `src/supporto/memory.py`, `models.py`, `config.py` | Runtime | Preferenze esplicite con rimozione di email, telefoni e carte; reasoning finale spento solo per LFM3 locale; `Settings` e `demo_today` governano la riproducibilità. |
+| `app.py` + `cli.py` | Interfacce | UI con `st.session_state` e scheda di approvazione; CLI con ciclo degli interrupt. Entrambe usano lo stesso grafo, lo stesso ledger e gli stessi dati. |
+| `eval/` + `tests/` | Verifica | 31 scenari con tool, fonti, HITL, scritture e memoria attesi; ogni scenario gira su file temporanei. I test usano `ScriptedModel` e dati isolati. |
+| `src/supporto/support_data.py` + `scripts/` | Dati e deliverable | Seed `7`, 50 clienti, 200 ordini, ordini curati `ORD-1001`–`ORD-1008`; gli script rigenerano diagramma, PDF e PPTX dai dati reali. |
+
+### Il turno in `agent.py`
+
+- **`SupportState`**: `messages` usa `add_messages`, quindi i messaggi si accumulano nel thread; `customer_id` resta quello della sessione; `final_answer` e `sources` vengono azzerati a ogni `start_turn`.
+- **`agent_node`**: antepone `SYSTEM_PROMPT` alla conversazione e chiama il modello con i tool collegati. Il modello o restituisce `tool_calls`, oppure scrive direttamente.
+- **`route_agent`**: se l'ultimo messaggio ha `tool_calls` va su `tools`, altrimenti su `finalize`. Non esiste un ritorno da `tools` ad `agent`.
+- **`respond_node`**: prende l'ultima richiesta umana e i risultati dei tool dell'ultimo turno, sceglie il prompt con `final_answer_prompt(tool_name)` e chiama il modello **senza tool**. Poi applica `extract_answer` e salva solo il blocco `<risposta>`.
+- **`finalize`**: cerca l'ultima risposta AI del turno corrente, non del turno precedente. Se è vuota, usa un messaggio neutro che propone un ticket; raccoglie le fonti, registra i tool usati e scrive l'evento `turno` nell'audit.
+- **`start_turn` / `resume_turn` / `pending_interrupt` / `state_values`**: avviano un turno azzerando risposta e fonti, riprendono un interrupt con `Command(resume=...)`, estraggono la proposta HITL e leggono lo stato del thread.
+- **Reasoning**: con LFM3 locale il modello principale può usare il reasoning per scegliere il tool; per il passo finale `build_graph` crea un secondo modello con reasoning disattivato, perché il secondo passo deve solo raccontare gli esiti e non deve esaurire il contesto.
+
+### `tools.py`: il confine tra modello e dati
+
+I sette tool sono `cerca_policy`, `stato_ordine`, `elenca_ordini`, `verifica_reso`, `proponi_rimborso`, `apri_ticket` e `ricorda_preferenza`. Le docstring sono lo schema che il modello vede: non sono commenti decorativi.
+
+- **`ToolRuntime`**: `_customer(runtime)` legge `customer_id` dallo stato del grafo. Il modello non può passare un cliente come argomento.
+- **Privacy**: `stato_ordine`, `verifica_reso` e `proponi_rimborso` usano `policy.find_order(order_id, customer_id)`. Se l'ordine non esiste o appartiene a un altro cliente, il messaggio è lo stesso (`PRIVACY_MESSAGE`) e l'evento `privacy_accesso_negato` finisce nell'audit.
+- **`cerca_policy`**: unisce la query del modello all'ultima richiesta del cliente, così i dettagli specifici non si perdono; restituisce `contesto` e `fonti`.
+- **`proponi_rimborso`**: verifica l'idoneità; se l'ordine non è idoneo non apre nulla. Se è idoneo calcola l'importo, costruisce la proposta con livello `operatore` o `responsabile` (sopra 500 EUR), chiama `interrupt(...)` e solo dopo l'approvazione chiama `ledger.execute_refund`. Un rifiuto non scrive nulla e registra `rimborso_rifiutato`.
+
+### `policy.py`: regole e albero decisionale
+
+Le costanti pubblicate sono: reso entro **30 giorni**, garanzia **24 mesi**, rimborso in **5-10 giorni**, spedizione gratuita sopra **50 EUR** e costo **4,90 EUR**, escalation sopra **500 EUR**, prima risposta di un ticket entro **24 ore**. Le categorie escluse sono personalizzati, igiene, digitali e fine serie.
+
+`check_return_eligibility()` applica quest'ordine: cliente dell'ordine, rimborso già presente, ordine annullato, ordine consegnato, data di consegna, finestra dei 30 giorni, articoli o categorie escluse. Restituisce `eligible`, `reason`, `days_since_delivery`, `excluded_items`, `excluded_categories` e i riferimenti alla policy. `calculate_refund()` calcola `articoli - sconto + spedizione rimborsabile` e segnala `requires_escalation` sopra la soglia.
+
+### `audit.py`: prove e idempotenza
+
+`log()` aggiunge una riga JSONL con lock di processo. Gli eventi tipici sono `turno`, `privacy_accesso_negato`, `ticket_creato`, `rimborso_eseguito`, `rimborso_rifiutato`, `rimborso_duplicato_bloccato` e `rimborso_errore`.
+
+`execute_refund()` è la difesa in profondità: anche se il tool sbagliasse, il ledger verifica approvazione umana, esistenza dell'ordine, coerenza del cliente, importo rispetto a `calculate_refund` e assenza di duplicati. Solo dopo scrive il rimborso, aggiorna `orders.json` con `refund_id` e registra l'evento. I file passano da `.tmp` a `os.replace`, quindi non restano JSON parziali. Un secondo tentativo sullo stesso ordine restituisce `duplicato=True` senza scrivere.
+
+### `prompts.py` e `turns.py`: una risposta pulita
+
+`SYSTEM_PROMPT` contiene ruolo, vincoli, un solo tool per turno, regole di privacy, few-shot e l'istruzione a non scrivere la risposta al cliente quando si chiama un tool. `FINAL_ANSWER_BASE` è il contratto del passo finale; `FINAL_ANSWER_BY_TOOL` aggiunge un'istruzione mirata per ciascun tool. Il modello deve scrivere tra `<risposta>` e `</risposta>`; `extract_answer()` estrae quel blocco e, se i tag mancano, lascia il testo invariato per non perdere una risposta valida.
+
+`turns.py` centralizza la lettura dei messaggi: `message_text` gestisce contenuti a blocchi, `last_human_index` e `turn_messages` isolano l'ultimo turno, `tool_messages` e `tool_names` leggono gli esiti, `sources_from_messages` raccoglie le fonti e `extract_answer` chiude il contratto della risposta.
+
+### `corpus.py`: il RAG
+
+Il corpus è composto da dieci documenti Markdown. Il caricamento separa prima le sezioni con `MarkdownHeaderTextSplitter`, poi applica chunk da **650 caratteri** con overlap **50**. L'indice BM25 viene ricostruito a ogni query: il corpus è piccolo e non c'è cache da invalidare. La tokenizzazione normalizza il testo italiano e un dizionario di sinonimi copre varianti di reso, rimborso, tracking, spedizione e garanzia. Si restituiscono i primi `top_k` chunk con score positivo, formattati con etichette `[S1]`, `[S2]`; `source_payload` conserva documento, sezione, `chunk_id` e snippet per UI e valutazione.
+
+### `memory.py`, `models.py`, `config.py`
+
+- **Memoria breve**: è il checkpointer `InMemorySaver`, con un `thread_id` per conversazione.
+- **Memoria lunga**: `PreferenceMemory` salva solo preferenze esplicite. `_sanitize()` rimuove email, telefoni e numeri di carta; il testo è limitato a 200 caratteri; i duplicati sono confrontati senza distinzione tra maiuscole e minuscole.
+- **Modelli**: `get_chat_model()` crea `ChatOpenAI` per LM Studio o `ChatGoogleGenerativeAI` per Gemini, con `temperature=0`. `final_reasoning_effort()` restituisce `"none"` solo per LFM3 locale; `list_local_models()` e `dedupe_models()` alimentano il selettore della UI.
+- **Configurazione**: `Settings` legge backend, modello, URL, reasoning, `demo_today`, `top_k` e chunking. `demo_today` è fisso al **2026-10-23** per rendere riproducibili finestra di reso e giorni trascorsi. `get_settings()` rilegge l'ambiente a ogni chiamata, così la UI può cambiare modello senza riavviare. Dal `.env` superiore vengono importate solo le chiavi Gemini, per non sovrascrivere i parametri della v2.
+
+### `app.py` e `cli.py`
+
+La UI Streamlit tiene grafo, ledger, memoria e impostazioni in `st.session_state`; quando cambia modello o cliente ricostruisce il grafo e apre una nuova conversazione. `call_turn()` avvia il turno, `resume()` invia l'approvazione o il rifiuto e `render_pending()` mostra la proposta con importo, livello, motivo e pulsanti. Sopra 500 EUR chiede una conferma esplicita come responsabile. `render_messages()` mostra chat, risposta finale e fonti; `reset_demo_data()` rigenera i dati e svuota l'audit.
+
+La CLI espone gli stessi flussi da terminale: `start_turn`/`resume_turn`, `_handle_interrupts()` per il ciclo di approvazione, i comandi `/stato`, `/fonti`, `/audit`, `/nuova`, `/esci` e la stessa gestione di privacy e HITL. UI e CLI non contengono regole di dominio: sono due modi diversi di usare lo stesso grafo.
+
+### `eval/` e `tests/`
+
+`eval/scenarios.py` contiene i 31 scenari. I campi sono: `tools` e `forbidden_tools` per i tool attesi o vietati; `proposal_must` per i dati della proposta HITL; `must` per la risposta finale (ogni gruppo è una lista di alternative); `sources` per le fonti attese; `interrupt` per il tipo di HITL; `approve` per la decisione; `refund_executed`, `ticket` e `memory_contains` per gli effetti collaterali; `forbidden` per i contenuti che non devono comparire.
+
+`eval/run_eval.py` crea una directory temporanea e dati isolati per ogni scenario, usa il grafo vero e ripristina i percorsi della policy alla fine. Verifica tool, fonti, risposta, HITL, rimborso, ticket e memoria; `summarize()` calcola pass rate, tool hit rate, source hit rate, HITL, refund safety, latenza media e tool per turno usando solo gli scenari che prevedono quel controllo. `write_reports()` scrive il JSON completo, `latest.json`, `riepilogo.md` e la failure gallery.
+
+I **60 test** usano `ScriptedModel`: un modello finto che restituisce risposte preparate, senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file, crea ledger e memoria isolati e costruisce il grafo con il modello scriptato. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
+
+### `support_data.py` e `scripts/`
+
+`support_data.py` genera 50 clienti, 200 ordini, 20 prodotti, 4 rimborsi iniziali, ticket e preferenze con seed `7`. Gli ordini curati `ORD-1001`–`ORD-1008` coprono i casi didattici: idoneo, fuori finestra, personalizzato, altro cliente, alto valore, in transito, igiene e difettoso. I dati sono fittizi e le date dipendono da `demo_today`.
+
+Gli script non fanno parte del runtime: `make_report.py` genera il PDF, `make_presentazione.py` il PPTX, `make_architecture.py` il diagramma e `reset_demo.py` ripristina i dati demo. Leggono le metriche da `eval/results/` e non inventano numeri.
 
 I PDF e il PPTX si rigenerano dai risultati reali con:
 

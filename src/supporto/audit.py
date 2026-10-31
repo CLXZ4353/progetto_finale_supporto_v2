@@ -34,6 +34,7 @@ def _read_json(path: Path, default: Any) -> Any:
 
 
 def _write_json(path: Path, data: Any) -> None:
+    """Scrive su file temporaneo e sostituisce: evita file JSON parziali."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -98,6 +99,7 @@ class AuditLedger:
                 tickets = {}
             next_number = len(tickets) + 1
             ticket_id = f"TKT-2026-{next_number:04d}"
+            # Salta eventuali buchi lasciati da ticket cancellati o importati.
             while ticket_id in tickets:
                 next_number += 1
                 ticket_id = f"TKT-2026-{next_number:04d}"
@@ -148,6 +150,7 @@ class AuditLedger:
         stesso ordine restituisce `duplicato=True` senza scrivere nulla.
         """
         if not approval.get("approved"):
+            # Un rifiuto è un esito, non un errore: si registra e si esce.
             self.log("rimborso_rifiutato", order_id=proposal.get("order_id"), thread_id=thread_id)
             return {"eseguito": False, "motivo": "Approvazione umana assente.", "duplicato": False}
 
@@ -164,6 +167,7 @@ class AuditLedger:
             if order_id in refunds or any(
                 str(r.get("order_id", "")).upper() == order_id for r in refunds.values()
             ):
+                # Il controllo copre sia la chiave ordine sia i record storici.
                 existing = refunds.get(order_id) or next(
                     r for r in refunds.values() if str(r.get("order_id", "")).upper() == order_id
                 )
@@ -188,6 +192,7 @@ class AuditLedger:
                 return {"eseguito": False, "duplicato": False, "motivo": "Ordine inesistente."}
 
             if str(order.get("customer_id")) != customer_id:
+                # La proposta non può cambiare cliente rispetto all'ordine.
                 self.log("rimborso_errore", order_id=order_id, motivo="cliente non coerente", thread_id=thread_id)
                 return {
                     "eseguito": False,
@@ -211,6 +216,7 @@ class AuditLedger:
 
             expected = policy.calculate_refund(order)["total"]
             if abs(expected - amount) > 0.01:
+                # Tolleranza di un centesimo per gli arrotondamenti, non di più.
                 self.log(
                     "rimborso_errore",
                     order_id=order_id,

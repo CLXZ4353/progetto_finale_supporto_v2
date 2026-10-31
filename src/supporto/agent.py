@@ -35,10 +35,14 @@ from .turns import (
     tool_messages,
 )
 
+# Limite di sicurezza: il grafo è aciclico, ma un resume HITL non deve poter
+# rientrare all'infinito.
 RECURSION_LIMIT = 20
 
 
 class SupportState(TypedDict, total=False):
+    """Stato condiviso del thread: chat, cliente, risposta e fonti."""
+
     messages: Annotated[list[BaseMessage], add_messages]
     customer_id: str
     final_answer: str
@@ -46,6 +50,7 @@ class SupportState(TypedDict, total=False):
 
 
 def new_thread_id() -> str:
+    """Identificatore opaco per una conversazione isolata."""
     return uuid.uuid4().hex
 
 
@@ -54,6 +59,7 @@ def _format_tool_result(message: ToolMessage) -> str:
     name = str(message.name or "tool")
     text = message_text(message)
     if name == "cerca_policy":
+        # La ricerca restituisce JSON: al passo finale serve solo il contesto.
         try:
             payload = json.loads(message.content or "{}")
         except (json.JSONDecodeError, TypeError):
@@ -92,6 +98,7 @@ def build_graph(
         return {"messages": [response]}
 
     def route_agent(state: SupportState) -> str:
+        # Il modello ha già deciso: con tool_calls si esegue, altrimenti si chiude.
         last = state["messages"][-1]
         return "tools" if getattr(last, "tool_calls", None) else "finalize"
 
@@ -183,6 +190,7 @@ def _config(thread_id: str) -> dict[str, Any]:
 
 
 def start_turn(graph, thread_id: str, customer_id: str, message: str):
+    """Avvia un turno azzerando risposta e fonti del turno precedente."""
     return graph.invoke(
         {
             "messages": [HumanMessage(content=message)],

@@ -50,11 +50,14 @@ def _print_state(state: dict) -> None:
 
 
 def _ask_yes_no(prompt: str) -> bool:
+    # Default no: l'approvazione richiede una risposta esplicita.
     answer = input(prompt).strip().lower()
     return answer in {"s", "si", "sì", "y", "yes"}
 
 
 def _handle_interrupts(graph, thread_id: str, result: dict) -> dict:
+    # Il resume può restituire un altro interrupt: si continua finché non
+    # resta nulla da approvare.
     while True:
         pending = pending_interrupt(result)
         if not pending:
@@ -78,6 +81,7 @@ def _handle_interrupts(graph, thread_id: str, result: dict) -> dict:
             if level == "responsabile" and not _ask_yes_no(
                 "Importo > 500 EUR: approvi come responsabile? [s/N] "
             ):
+                # La soglia richiede una seconda conferma esplicita.
                 approved = False
                 note = "Approvazione del responsabile mancante."
         result = resume_turn(
@@ -115,6 +119,7 @@ def main() -> None:
         raise SystemExit(f"Cliente {args.customer} non trovato.")
 
     ledger = AuditLedger()
+    # Un solo grafo in memoria per la sessione: il thread_id separa le conversazioni.
     graph = build_graph(settings, ledger=ledger)
     thread_id = args.thread or new_thread_id()
 
@@ -137,6 +142,7 @@ def main() -> None:
             print("Arrivederci.")
             break
         if message.lower() == "/nuova":
+            # Nuovo thread, stessi dati e stesso ledger.
             thread_id = new_thread_id()
             print(f"Nuova conversazione: {thread_id}")
             continue

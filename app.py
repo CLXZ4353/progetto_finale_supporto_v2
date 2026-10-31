@@ -61,6 +61,8 @@ SCENARIOS = {
 
 
 def reset_demo_data() -> None:
+    # Rigenera i file e ricrea il grafo: la conversazione precedente non deve
+    # sopravvivere a un ripristino dei dati.
     write_support_data(SUPPORT_DIR)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     AUDIT_PATH.write_text("", encoding="utf-8")
@@ -84,10 +86,12 @@ def ensure_state() -> None:
 
 @st.cache_data(ttl=15, show_spinner=False)
 def _available_models(base_url: str) -> list[str]:
+    # Cache breve: la sidebar viene rieseguita a ogni interazione.
     return list_local_models(Settings(lm_studio_base_url=base_url))
 
 
 def _build_active_graph(settings: Settings) -> None:
+    # Un grafo nuovo porta con sé ledger e memoria nuovi e nessuna conversazione.
     ledger = AuditLedger()
     memory = PreferenceMemory()
     st.session_state.graph = build_graph(settings, ledger=ledger, memory=memory)
@@ -143,6 +147,7 @@ def model_controls() -> None:
             st.sidebar.error("GEMINI_API_KEY assente nel `.env`: Gemini non è utilizzabile.")
 
     key = (backend, local_model, reasoning)
+    # Ricostruisce solo quando cambia la configurazione, non a ogni rerun.
     if st.session_state.get("model_key") != key:
         settings.model_backend = "gemini" if backend.startswith("Gemini") else "local"
         settings.lm_studio_model = local_model
@@ -176,6 +181,7 @@ def customer_controls() -> str:
         index=ids.index(st.session_state.customer_id),
         format_func=lambda cid: f"{cid} — {by_id[cid]['name']} ({by_id[cid]['tier']})",
         key="customer_id",
+        # Cambiare profilo chiude la conversazione: un thread non mescola clienti.
         on_change=new_conversation,
     )
     st.sidebar.caption(
@@ -185,10 +191,12 @@ def customer_controls() -> str:
 
 
 def scenario_controls() -> None:
+    # Con un'approvazione aperta non si avviano altri scenari.
     pending = bool(st.session_state.get("pending"))
     st.sidebar.header("Scenari demo")
     for label, message in SCENARIOS.items():
         if st.sidebar.button(label, use_container_width=True, disabled=pending):
+            # I button causano un rerun: il turno parte dal ciclo principale.
             st.session_state.queued_message = message
             st.rerun()
     st.sidebar.divider()
@@ -249,6 +257,7 @@ def show_orders(customer_id: str) -> None:
 
 def call_turn(message: str, customer_id: str) -> None:
     pending = st.session_state.get("pending")
+    # Un nuovo turno mentre l'approvazione è aperta aggirerebbe l'HITL.
     if pending or not st.session_state.get("graph"):
         return
     st.session_state.queued_message = None
@@ -272,6 +281,7 @@ def resume(decision: dict) -> None:
     except Exception as exc:  # noqa: BLE001
         st.error(f"Errore durante l'approvazione: {type(exc).__name__}: {exc}")
         return
+    # Il resume può produrre un nuovo interrupt: la UI lo rimette in attesa.
     st.session_state.pending = pending_interrupt(result)
     st.rerun()
 
@@ -334,6 +344,7 @@ def render_pending() -> None:
     cols[1].metric("Importo", amount)
     note = st.text_area("Nota per l'audit (facoltativa)", key="refund_note")
     if level == "responsabile":
+        # Oltre 500 EUR serve una conferma esplicita del responsabile.
         confirmed = st.checkbox("Confermo di approvare come responsabile (importo > 500 EUR)")
     else:
         confirmed = True
@@ -383,6 +394,7 @@ def main() -> None:
     show_orders(customer_id)
 
     if st.session_state.get("queued_message"):
+        # Esegue il messaggio dopo il rerun, quando i widget sono stabili.
         call_turn(st.session_state.queued_message, customer_id)
         st.rerun()
 
@@ -390,6 +402,7 @@ def main() -> None:
     render_pending()
 
     if not st.session_state.get("pending"):
+        # Nessun nuovo messaggio finché la proposta non è decisa.
         prompt = st.chat_input("Scrivi un messaggio...")
         if prompt:
             st.session_state.queued_message = prompt

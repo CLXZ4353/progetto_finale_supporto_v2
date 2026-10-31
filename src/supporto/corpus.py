@@ -89,6 +89,7 @@ def split_documents(
     )
     chunks: list[Document] = []
     for doc in documents:
+        # Prima si separa per sezione Markdown: mantiene uniti i passaggi coerenti.
         sections = header_splitter.split_text(doc.page_content)
         if not sections:
             sections = [Document(page_content=doc.page_content, metadata={})]
@@ -101,6 +102,7 @@ def split_documents(
                 "source": source,
             }
             section_doc = Document(page_content=section.page_content, metadata=meta)
+            # Poi si applica il limite di caratteri ai blocchi troppo lunghi.
             for piece in text_splitter.split_documents([section_doc]):
                 index += 1
                 piece.metadata["chunk_id"] = f"{source}#{index}"
@@ -110,6 +112,7 @@ def split_documents(
 
 
 def _tokens(text: str) -> list[str]:
+    # Tokenizzazione lessicale: normalizza senza stemming, il corpus è piccolo.
     words = re.findall(r"[a-zàèéìòù0-9]+", text.lower())
     return [word for word in words if len(word) > 1]
 
@@ -122,6 +125,7 @@ def _query_tokens(query: str) -> list[str]:
 
 
 def _index(settings: Settings) -> tuple[BM25Okapi, list[Document]]:
+    # L'indice è ricostruito a ogni query: pochi documenti, nessuna cache da invalidare.
     chunks = split_documents(
         load_corpus(), settings.chunk_size, settings.chunk_overlap
     )
@@ -139,6 +143,7 @@ def retrieve(
     scores = index.get_scores(_query_tokens(query))
     ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
     limit = k or settings.top_k
+    # Scarta i chunk senza sovrapposizione lessicale: meglio nessuna fonte che una falsa.
     return [chunks[i] for i in ranked[:limit] if scores[i] > 0]
 
 
@@ -147,6 +152,7 @@ def format_context(documents: list[Document]) -> str:
     for i, doc in enumerate(documents, start=1):
         source = doc.metadata.get("source", "?")
         section = doc.metadata.get("sezione", "")
+        # L'etichetta [S1] è quella che il modello deve citare nella risposta.
         header = f"[S{i}] {source}" + (f" - {section}" if section else "")
         lines.append(f"{header}\n{doc.page_content.strip()}")
     return "\n\n".join(lines)

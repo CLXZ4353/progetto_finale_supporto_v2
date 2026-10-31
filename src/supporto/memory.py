@@ -25,6 +25,7 @@ _CARD_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
 
 
 def _sanitize(text: str) -> str:
+    # Prima normalizza gli spazi, poi maschera i dati che non devono restare su file.
     cleaned = " ".join(str(text).split()).strip()
     cleaned = _EMAIL_RE.sub("[email rimossa]", cleaned)
     cleaned = _PHONE_RE.sub("[telefono rimosso]", cleaned)
@@ -56,6 +57,7 @@ class PreferenceMemory:
             cleaned = []
             for item in items:
                 text = str(item.get("text", "")).strip()
+                # Record vuoti o malformati non entrano nella memoria.
                 if text:
                     cleaned.append(
                         {
@@ -68,6 +70,7 @@ class PreferenceMemory:
                 self._items[str(customer_id)] = cleaned
 
     def _save(self) -> None:
+        # Scrittura atomica: il file vecchio resta valido finché il nuovo è pronto.
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
         tmp.write_text(
@@ -90,6 +93,7 @@ class PreferenceMemory:
             return {"salvata": False, "motivo": "nessun contenuto utile da ricordare"}
         with self._lock:
             items = self._items.setdefault(str(customer_id), [])
+            # Il confronto è case-insensitive per evitare duplicati cosmetici.
             existing = {item["text"].lower() for item in items}
             if cleaned.lower() in existing:
                 return {"salvata": False, "motivo": "preferenza già presente", "testo": cleaned}

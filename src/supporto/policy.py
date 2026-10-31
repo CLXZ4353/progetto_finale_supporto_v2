@@ -3,8 +3,8 @@
 
 Questo modulo e' la fonte unica di verita' per le regole di reso e rimborso:
 i documenti RAG spiegano le regole, qui vengono applicate in modo
-deterministico. Il test `test_policy_docs.py` controlla che i numeri presenti
-nei documenti coincidano con le costanti di questo file.
+deterministico. Il test `tests/test_policy_corpus.py` controlla che i numeri
+presenti nei documenti coincidano con le costanti di questo file.
 """
 from __future__ import annotations
 
@@ -169,10 +169,12 @@ def check_return_eligibility(
     }
 
     if order.get("customer_id") != customer_id:
+        # Difesa ridondante: il tool ha già filtrato, ma la policy non si fida.
         result["reason"] = "Ordine non trovato per questo cliente."
         return result
 
     if refund_for_order(order_id, refunds_path) or order.get("refund_id"):
+        # Un rimborso già registrato chiude il caso prima della finestra.
         result["reason"] = "L'ordine risulta gia' rimborsato."
         result["policy_refs"] = [POLICY_REFS["rimborsi"]]
         return result
@@ -182,6 +184,7 @@ def check_return_eligibility(
         result["reason"] = "L'ordine e' stato annullato: non e' possibile avviare un reso."
         return result
     if status != "consegnato":
+        # La finestra decorre dalla consegna: senza consegna non è valutabile.
         result["reason"] = "L'ordine non risulta ancora consegnato: il reso potra' essere richiesto dopo la consegna."
         return result
 
@@ -202,6 +205,7 @@ def check_return_eligibility(
 
     excluded: list[str] = []
     excluded_categories: set[str] = set()
+    # Le esclusioni valgono anche dentro la finestra: basta un articolo.
     for item in order.get("items", []):
         category = str(item.get("category", "")).lower()
         flags = [k for k in EXCLUDED_CATEGORIES if item.get(k)]
@@ -235,6 +239,7 @@ def calculate_refund(order: dict, *, requires_escalation_threshold: float = ESCA
         items_total += float(item.get("quantity", 0)) * float(item.get("unit_price", 0.0))
     discount = float(order.get("discount", 0.0) or 0.0)
     shipping = float(order.get("shipping", 0.0) or 0.0)
+    # La spedizione torna solo se il reso è a carico nostro (difetto o flag).
     shipping_refund = shipping if (order.get("defective") or order.get("shipping_refundable")) else 0.0
     total = max(0.0, round(items_total - discount + shipping_refund, 2))
     return {
@@ -245,6 +250,7 @@ def calculate_refund(order: dict, *, requires_escalation_threshold: float = ESCA
         "total": total,
         "currency": "EUR",
         "threshold_eur": requires_escalation_threshold,
+        # Oltre la soglia serve un responsabile, non un operatore.
         "requires_escalation": total > requires_escalation_threshold,
         "policy_refs": [POLICY_REFS["rimborsi"], POLICY_REFS["resi"]],
     }

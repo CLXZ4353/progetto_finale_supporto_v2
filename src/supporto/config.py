@@ -31,6 +31,7 @@ LOGS_DIR = ROOT / "logs"
 EVAL_DIR = ROOT / "eval"
 DOCS_DIR = ROOT / "docs"
 
+# Percorsi unici usati da policy, ledger, memoria e tool.
 ORDERS_PATH = SUPPORT_DIR / "orders.json"
 CUSTOMERS_PATH = SUPPORT_DIR / "customers.json"
 PRODUCTS_PATH = SUPPORT_DIR / "products.json"
@@ -52,6 +53,7 @@ class Settings:
     # Solo per modelli che supportano il controllo del reasoning (es. LFM3):
     # "none" disattiva, vuoto lascia il default del modello.
     lm_studio_reasoning_effort: str = ""
+    # Data fissa: finestra di reso e giorni trascorsi restano riproducibili.
     demo_today: date = field(default_factory=lambda: date(2026, 10, 23))
     top_k: int = 3
     chunk_size: int = 650

@@ -54,6 +54,7 @@ def _status_label(status: Any) -> str:
 
 
 def _public_row(order: dict) -> dict:
+    """Campi mostrabili in tabella: niente customer_id o note interne."""
     items = "; ".join(
         f"{item.get('name')} x{item.get('quantity')}" for item in order.get("items", [])
     )
@@ -78,6 +79,7 @@ def _markdown_table(rows: list[dict]) -> str:
         "| " + " | ".join("---" for _ in headers) + " |",
     ]
     for row in rows:
+        # Le pipe nei valori romperebbero la tabella Markdown.
         cells = [str(row[h]).replace("|", "\\|") for h in headers]
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
@@ -131,6 +133,7 @@ def make_tools(
         cliente, così i termini specifici non vanno persi.
         """
         messages = (runtime.state or {}).get("messages") or []
+        # Unire query e richiesta originale evita che il modello perda i dettagli.
         search = f"{query} {last_human_text(messages)}".strip()
         docs = retrieve(search, k=settings.top_k, settings=settings)
         return _json(
@@ -151,6 +154,7 @@ def make_tools(
         customer_id = _customer(runtime)
         order = policy.find_order(order_id, customer_id)
         if order is None:
+            # Stesso messaggio per ordine inesistente e ordine di un altro cliente.
             ledger.log(
                 "privacy_accesso_negato",
                 order_id=str(order_id).upper(),
@@ -187,6 +191,7 @@ def make_tools(
         customer_id = _customer(runtime)
         order = policy.find_order(order_id, customer_id)
         if order is None:
+            # Anche qui la privacy ha priorità sul motivo del fallimento.
             ledger.log(
                 "privacy_accesso_negato",
                 order_id=str(order_id).upper(),
@@ -198,6 +203,7 @@ def make_tools(
         eligibility = policy.check_return_eligibility(
             order, customer_id, today=settings.demo_today
         )
+        # Il testo è già definitivo: il modello deve solo riportarlo.
         lines = [
             f"Esito definitivo per l'ordine {eligibility['order_id']}: "
             f"{'idoneo' if eligibility['eligible'] else 'non idoneo'} al reso.",
@@ -217,6 +223,7 @@ def make_tools(
                 + "."
             )
         if order.get("defective"):
+            # La difettosità cambia le condizioni di reso: va detta esplicitamente.
             lines.append(
                 "L'articolo è segnalato come difettoso: la spedizione di ritorno è a "
                 "carico nostro e puoi scegliere tra reso/rimborso o sostituzione."
@@ -238,6 +245,7 @@ def make_tools(
         customer_id = _customer(runtime)
         order = policy.find_order(order_id, customer_id)
         if order is None:
+            # Non si rivela se l'ordine esiste ma appartiene a un altro cliente.
             ledger.log(
                 "privacy_accesso_negato",
                 order_id=str(order_id).upper(),
@@ -249,11 +257,13 @@ def make_tools(
             order, customer_id, today=settings.demo_today
         )
         if not eligibility["eligible"]:
+            # Nessuna proposta e nessuna sospensione: il caso è già chiuso.
             return (
                 f"Rimborso non eseguito per {str(order_id).upper()}: "
                 f"l'ordine non e' idoneo al rimborso. {eligibility['reason']}"
             )
         refund = policy.calculate_refund(order)
+        # Il livello è calcolato dal codice, non scelto dal modello.
         proposal = {
             "order_id": str(order.get("order_id", "")).upper(),
             "customer_id": customer_id,
@@ -268,6 +278,8 @@ def make_tools(
             "level": "responsabile" if refund["requires_escalation"] else "operatore",
         }
         decision = interrupt({"type": "refund_approval", "proposal": proposal})
+        # `interrupt` ha sospeso il turno: da qui si prosegue solo con una
+        # decisione umana.
         if not isinstance(decision, dict) or not decision.get("approved"):
             ledger.log(
                 "rimborso_rifiutato",
@@ -280,6 +292,7 @@ def make_tools(
                 f"accreditato per {proposal['order_id']}."
             )
         decision = {**decision, "level": decision.get("level") or proposal["level"]}
+        # Il ledger rivalida cliente, importo e duplicati prima di scrivere.
         result = ledger.execute_refund(
             proposal, decision, thread_id=_thread_id(runtime)
         )
@@ -309,6 +322,7 @@ def make_tools(
         """
         text = str(motivo or "").strip() or "Richiesta di assistenza"
         lower = text.lower()
+        # Le parole di escalation alzano la priorità senza chiedere altro al modello.
         priority = "alta" if any(
             word in lower for word in ("responsabile", "reclamo", "vergognoso", "urgenza")
         ) else "normale"

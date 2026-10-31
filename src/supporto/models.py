@@ -8,6 +8,7 @@ from langchain_openai import ChatOpenAI
 
 from .config import Settings, get_settings
 
+
 def is_lfm3(model_id: str) -> bool:
     """True per LFM3, l'unico modello con reasoning controllabile qui."""
     return "lfm3" in str(model_id).lower()
@@ -28,7 +29,11 @@ def dedupe_models(models: list[str], *, preferred: str | None = None) -> list[st
 
 
 def final_reasoning_effort(settings: Settings) -> str | None:
-    """Reasoning della risposta finale: spento solo con LFM3 locale."""
+    """Reasoning della risposta finale: spento solo con LFM3 locale.
+
+    Il reasoning resta utile per scegliere il tool, ma nel secondo passo può
+    consumare il contesto e restituire un contenuto vuoto.
+    """
     if settings.model_backend == "local" and is_lfm3(settings.lm_studio_model):
         return "none"
     return None
@@ -59,6 +64,7 @@ def get_chat_model(settings: Settings | None = None, *, reasoning_effort: str | 
         "model": settings.lm_studio_model,
         "api_key": "lm-studio",
         "base_url": settings.lm_studio_base_url,
+        # Temperatura zero: la demo privilegia riproducibilità e aderenza ai dati.
         "temperature": 0,
         "timeout": 120,
         "max_retries": 1,
@@ -73,6 +79,7 @@ def list_local_models(settings: Settings | None = None, timeout: float = 2.0) ->
     settings = settings or get_settings()
     base = settings.lm_studio_base_url.rstrip("/")
     root = base[:-3] if base.endswith("/v1") else base
+    # L'API v0 di LM Studio distingue LLM e embedding e mette i caricati in cima.
     for url, detailed in ((f"{root}/api/v0/models", True), (f"{base}/models", False)):
         try:
             response = requests.get(url, timeout=timeout)

@@ -312,6 +312,7 @@ def table(
     small: bool = False,
     align_center_from: int = 99,
     zebra: bool = True,
+    pad: float = 5,
 ) -> Table:
     data = []
     for r, row in enumerate(rows):
@@ -328,8 +329,8 @@ def table(
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 5),
         ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), pad),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), pad),
         ("GRID", (0, 0), (-1, -1), 0.4, LINE),
     ]
     if header:

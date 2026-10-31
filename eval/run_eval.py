@@ -43,11 +43,14 @@ RESULTS_DIR = ROOT / "eval" / "results"
 
 
 def norm(text: str) -> str:
+    # Normalizza accenti e apostrofi: le varianti della risposta non devono
+    # cambiare l'esito di un controllo.
     text = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode("utf-8")
     return text.lower().replace("e'", "e").replace("\u2019", "'")
 
 
 def check_groups(text: str, groups: list[list[str]] | None) -> list[str]:
+    # Ogni gruppo è una lista di alternative: basta una per soddisfarlo.
     normalized = norm(text)
     return [
         "manca: " + " | ".join(group)
@@ -57,6 +60,7 @@ def check_groups(text: str, groups: list[list[str]] | None) -> list[str]:
 
 
 def tools_after(state: dict, tool_name: str) -> list[str]:
+    # Cerca tool eseguiti dopo l'esito di un certo tool (es. il rimborso).
     messages = state.get("messages") or []
     index = None
     for position, message in enumerate(messages):
@@ -72,6 +76,7 @@ def tools_after(state: dict, tool_name: str) -> list[str]:
 
 
 def proposal_text(pending: dict) -> str:
+    # Appiattisce la proposta in testo per i controlli di contenuto.
     proposal = pending.get("proposal") or {}
     return " ".join(
         str(part)
@@ -88,7 +93,9 @@ def proposal_text(pending: dict) -> str:
 
 
 def run_scenario(scenario: dict, settings) -> dict:
+    # Ogni scenario lavora su file propri: nessun test può sporcarne un altro.
     workdir = Path(tempfile.mkdtemp(prefix=f"eval_{scenario['id']}_"))
+    # policy espone percorsi a livello di modulo: vanno salvati e ripristinati.
     original_paths = (
         policy.ORDERS_PATH,
         policy.CUSTOMERS_PATH,
@@ -112,6 +119,7 @@ def run_scenario(scenario: dict, settings) -> dict:
         memory = PreferenceMemory(workdir / "preferences.json")
         graph = build_graph(settings, ledger=ledger, memory=memory)
         thread_id = new_thread_id()
+        # Fotografia del ledger: l'HITL non deve scrivere prima dell'approvazione.
         initial_refunds = len(ledger.refunds())
 
         result = start_turn(graph, thread_id, scenario["customer"], scenario["message"])
@@ -138,6 +146,8 @@ def run_scenario(scenario: dict, settings) -> dict:
         refund_executed = False
         pending_after = None
         if pending and expected_interrupt == actual_interrupt and scenario.get("approve") is not None:
+            # Riprende solo gli scenari che dichiarano una decisione; gli altri
+            # restano volutamente in attesa.
             proposal = pending.get("proposal") or {}
             decision = {
                 "approved": bool(scenario["approve"]),
@@ -189,6 +199,7 @@ def run_scenario(scenario: dict, settings) -> dict:
         if "memory_contains" in scenario:
             profile = memory.get_profile(scenario["customer"])
             expected = scenario["memory_contains"]
+            # expected=None significa "nessuna preferenza deve essere salvata".
             if expected and norm(expected) not in norm(profile):
                 failures.append(f"memoria attesa contenere {expected!r}, profilo={profile!r}")
             if expected is None and profile:
@@ -258,6 +269,7 @@ def summarize(results: list[dict], *, backend: str, model: str) -> dict:
     tool_checked = [
         next(s for s in SCENARIOS if s["id"] == result["id"]) for result in results
     ]
+    # Ogni metrica usa solo gli scenari che prevedono quel controllo.
     tool_results = [
         result["tool_ok"]
         for result, scenario in zip(results, tool_checked)
@@ -311,6 +323,7 @@ def write_reports(payload: dict, results: list[dict]) -> tuple[Path, Path]:
     name = f"{payload['config']['backend']}_{stamp}"
     json_path = RESULTS_DIR / f"{name}.json"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Puntatori stabili usati da report e presentazione.
     (RESULTS_DIR / "latest.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -351,6 +364,7 @@ def write_reports(payload: dict, results: list[dict]) -> tuple[Path, Path]:
             f"{result['interrupt'] or '-'} | {result['latency_s']:.1f}s |"
         )
     failures = [result for result in results if not result["passed"]]
+    # La failure gallery conserva l'errore, non lo nasconde.
     lines.extend(["", "## Failure gallery", ""])
     if not failures:
         lines.append("Nessun fallimento.")
@@ -380,6 +394,7 @@ def main() -> None:
     if args.model:
         settings.lm_studio_model = args.model
     scenarios = list(SCENARIOS)
+    # --scenario e --limit servono per iterare senza rilanciare tutti i 31.
     if args.scenario:
         scenarios = [scenario for scenario in scenarios if scenario["id"] == args.scenario]
     if args.limit:

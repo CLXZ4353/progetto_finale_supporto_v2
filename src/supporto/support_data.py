@@ -132,6 +132,7 @@ def _order(
 
 def build_support_data(seed: int = 7) -> dict:
     settings = get_settings()
+    # Stessa data della valutazione: i giorni trascorsi restano stabili.
     today = settings.demo_today
     rng = random.Random(seed)
     products = [dict(p) for p in PRODUCTS]
@@ -140,6 +141,9 @@ def build_support_data(seed: int = 7) -> dict:
     orders: list[dict] = []
 
     # --- scenari curati (la demo e i test li conoscono per nome) --------------
+    # 1001 idoneo, 1002 fuori finestra, 1003 personalizzato, 1004 altro cliente
+    # e già rimborsato, 1005 alto valore, 1006 in transito, 1007 igiene,
+    # 1008 difettoso.
     orders.append(
         _order(
             "ORD-1001", DEMO_CUSTOMER, today - timedelta(days=13),

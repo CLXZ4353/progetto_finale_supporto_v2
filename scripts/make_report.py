@@ -287,64 +287,89 @@ story.append(
     )
 )
 
-# --- pagina 3: funzionalità e alternative -----------------------------------
+# --- pagina 3: mappa del codice e alternative --------------------------------
 story.append(PageBreak())
-story.append(dc.h2("4. Funzionalità e perché"))
+story.append(dc.h2("4. Mappa del codice"))
+story.append(
+    P(
+        "La tabella collega ogni responsabilità al file che la implementa: è il livello di "
+        "lettura del codice, complementare al flusso descritto nelle sezioni 2 e 3.",
+        "small",
+    )
+)
 story.append(
     dc.table(
         [
-            ["Funzionalità", "Obiettivo", "Perché questa scelta", "Evidenza"],
+            ["File", "Responsabilità", "Dettagli da conoscere"],
             [
-                f"RAG BM25 su {docs} documenti, chunk 650/50, top 3",
-                "Risposte informative con fonti verificabili",
-                "Corpus breve e lessico stabile: niente embedding né indice persistente; le fonti sono deterministiche",
-                "Source hit 100% sui 9 scenari informativi",
+                "agent.py",
+                "Grafo e turno",
+                "<font face='Courier'>SupportState</font> (<font face='Courier'>messages</font>, "
+                "<font face='Courier'>customer_id</font>, <font face='Courier'>final_answer</font>, "
+                "<font face='Courier'>sources</font>); quattro nodi; <font face='Courier'>respond</font> "
+                "senza tool; <font face='Courier'>finalize</font> legge solo il turno corrente e ha un "
+                "fallback; <font face='Courier'>start_turn</font>/<font face='Courier'>resume_turn</font>.",
             ],
             [
-                "Memoria breve con <font face='Courier'>InMemorySaver</font>",
-                "Mantenere il filo della conversazione",
-                "Checkpointer LangGraph e un <font face='Courier'>thread_id</font> per sessione; lo stato non serve al di fuori del thread",
-                "Test di memoria tra turni",
+                "tools.py",
+                "Sette tool",
+                "<font face='Courier'>ToolRuntime</font> inietta il <font face='Courier'>customer_id</font>; "
+                "stesso messaggio per ordine inesistente o altrui; <font face='Courier'>cerca_policy</font> "
+                "unisce query e richiesta; <font face='Courier'>proponi_rimborso</font> sospende e scrive "
+                "solo dopo l'approvazione.",
             ],
             [
-                "Memoria lunga <font face='Courier'>PreferenceMemory</font>",
-                "Ricordare solo ciò che il cliente chiede",
-                "Nessun profilo dedotto: salvataggio solo su «ricorda», PII rimosse, duplicati ignorati",
-                "Test su PII e duplicati",
+                "policy.py",
+                "Regole deterministiche",
+                "30 giorni, 24 mesi, 5-10 giorni, 50/4,90 EUR, soglia 500 EUR; "
+                "<font face='Courier'>find_order</font>/<font face='Courier'>list_orders</font> filtrati; "
+                "albero di idoneità; <font face='Courier'>calculate_refund</font> con spedizione rimborsabile.",
             ],
             [
-                "HITL dentro <font face='Courier'>proponi_rimborso</font>",
-                "Nessun rimborso senza un umano",
-                "<font face='Courier'>interrupt()</font> lega proposta e approvazione; il ledger rivalida cliente, importo e duplicati",
-                "HITL 100%, rimborso pulito 100%",
+                "audit.py",
+                "Prove e ledger",
+                "Eventi JSONL (turno, privacy, ticket, rimborsi); <font face='Courier'>execute_refund</font> "
+                "ricontrolla approvazione, ordine, cliente, importo e duplicati; lock e file temporanei.",
             ],
             [
-                "Audit JSONL e ledger idempotente",
-                "Rendere ogni azione verificabile",
-                "Un evento per turno, accesso negato, rimborso e ticket; scrittura atomica e controllo dei duplicati",
-                "Test di ledger e idempotenza",
+                "prompts.py + turns.py",
+                "Qualità della risposta",
+                "Prompt per tool; contratto <font face='Courier'>&lt;risposta&gt;</font>; "
+                "<font face='Courier'>extract_answer</font>; helper per messaggi, turno, tool e fonti.",
             ],
             [
-                "UI Streamlit e CLI",
-                "Demo e ispezione dello stesso sistema",
-                "Stesso grafo, stesso ledger e stessi dati: cambia solo il modo di interagire",
-                "13 scenari demo nella UI; comandi CLI",
+                "corpus.py",
+                "RAG BM25",
+                "10 documenti; split per sezioni; chunk 650/50; BM25 e sinonimi; top 3 con "
+                "score <font face='Courier'>&gt; 0</font>; fonti <font face='Courier'>[S1]</font>.",
+            ],
+            [
+                "memory.py + models.py + config.py",
+                "Runtime",
+                "Preferenze esplicite, PII rimosse, duplicati ignorati; reasoning finale spento per LFM3 "
+                "locale; <font face='Courier'>Settings</font>, <font face='Courier'>demo_today</font> e percorsi.",
+            ],
+            [
+                "app.py + cli.py + eval/ + tests/",
+                "Interfacce e verifica",
+                "<font face='Courier'>session_state</font> e pending; conferma &gt; 500 EUR; ciclo interrupt "
+                "nella CLI; 31 scenari su file temporanei; metriche; <font face='Courier'>ScriptedModel</font>.",
             ],
         ],
-        [3.5 * cm, 3.2 * cm, 6.4 * cm, 4.3 * cm],
+        [3.1 * cm, 3.1 * cm, 11.2 * cm],
         small=True,
+        pad=3,
     )
 )
-story.append(Spacer(1, 0.2 * cm))
+story.append(Spacer(1, 0.15 * cm))
 story.append(
     P(
-        "<b>Perché un tool e non solo prompting.</b> Il modello non conosce gli ordini del cliente, non "
-        "può calcolare un rimborso e non può verificare una finestra di reso. Un prompt può descrivere "
-        "la regola, ma non applicarla né impedire una scrittura. I sette tool portano nel turno dati "
-        "reali e controlli deterministici: è il motivo per cui il progetto non si limita a chiedere al "
-        "modello di «comportarsi bene»."
+        "I tool portano nel turno dati e controlli deterministici: il prompt descrive le regole, "
+        "il codice le applica e il ledger le rivalida prima di ogni scrittura.",
+        "small",
     )
 )
+story.append(Spacer(1, 0.1 * cm))
 
 story.append(dc.h2("5. Scelte e alternative scartate"))
 story.append(
@@ -395,30 +420,26 @@ story.append(
 story.append(Spacer(1, 0.2 * cm))
 story.append(
     P(
-        "<b>Prompting.</b> Il system prompt usa ruolo e vincoli espliciti, few-shot per la scelta del "
-        "tool e per la risposta diretta, e output strutturato: lo schema degli argomenti è generato da "
-        "LangChain a partire dalle annotazioni dei tool, quindi il modello non può inventare campi o "
-        "formati. Il prompt di scelta è breve — con modelli da 1-3B poche regole chiare sono più "
-        "affidabili di un elenco lungo — mentre il prompt finale riceve solo richiesta ed esiti, vieta "
-        "calcoli e dati inventati e non può avviare altre azioni. Il prompt finale cambia per tool e "
-        "chiede un blocco <font face='Courier'>&lt;risposta&gt;</font>: il codice estrae solo quel "
+        "<b>Prompting.</b> Il system prompt usa ruolo e vincoli, few-shot e output strutturato: lo "
+        "schema degli argomenti è generato da LangChain, quindi il modello non inventa campi. Il "
+        "prompt di scelta resta breve; quello finale riceve solo richiesta ed esiti, cambia per tool e "
+        "chiede un blocco <font face='Courier'>&lt;risposta&gt;</font>. Il codice estrae solo quel "
         "blocco, così il ragionamento non arriva al cliente."
     )
 )
 story.append(
     P(
-        "<b>Perché non multi-agente, reflection o LangSmith.</b> Non li ho aggiunti perché il caso d'uso "
-        "non li richiede: un dominio, sette tool, un turno singolo. Supervisore e reflection "
-        "aggiungerebbero passaggi e latenza senza migliorare la scelta; LangSmith sarebbe un account "
-        "esterno per 31 scenari già coperti da JSON e failure gallery."
+        "<b>Perché non multi-agente, reflection o LangSmith.</b> Un dominio, sette tool e un turno "
+        "singolo non li richiedono: aggiungerebbero passaggi, latenza o un account esterno senza "
+        "migliorare la scelta."
     )
 )
 story.append(
     P(
         "<b>Un fallimento concreto.</b> Nella run Unsloth, <font face='Courier'>info_personalizzato</font> "
         "chiama <font face='Courier'>verifica_reso</font> invece di <font face='Courier'>cerca_policy</font>; "
-        "<font face='Courier'>memoria_implicita</font> salva una preferenza non richiesta. La failure gallery "
-        "conserva questi errori."
+        "<font face='Courier'>memoria_implicita</font> salva una preferenza non richiesta. La failure "
+        "gallery conserva gli errori."
     )
 )
 
