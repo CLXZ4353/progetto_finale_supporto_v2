@@ -8,6 +8,8 @@ La **v2** è la versione ottimizzata del progetto finale del corso **LLM & Agent
 
 Il grafo del turno usa **LangChain** e **LangGraph**, il retrieval è **BM25** sul corpus di policy, la UI è **Streamlit** e la CLI espone gli stessi flussi.
 
+Questo repository contiene runtime, dati, test e valutazione. I documenti di consegna e gli script che li generano sono nel pacchetto ZIP, non nel repository (vedi §14).
+
 | Metrica | Valore |
 |---|---|
 | Scenari superati con LFM3 | **31/31** |
@@ -141,11 +143,11 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 - **Audit e ledger idempotente**: turni, accessi negati, rimborsi, ticket e rifiuti in `logs/audit.jsonl`.
 - **Valutazione automatica**: 31 scenari con tool attesi e vietati, fonti, HITL, scritture e assenza di effetti collaterali.
 - **CLI** con gli stessi flussi della UI e **selettore del modello**.
-- **Relazione tecnica** di 4 pagine con appendice sulle funzioni Python, **guida orale** e **presentazione** di 12 slide, generate dagli stessi dati.
+- **Materiale di consegna**: relazione tecnica di 4 pagine con appendice sulle funzioni Python, guida orale e presentazione di 12 slide. Sono inclusi nel pacchetto ZIP, non nel repository GitHub.
 
 Questi extra non sostituiscono i minimi: li rendono verificabili.
 
-> **Gemini.** Il backend cloud è implementato, ma non è stato possibile completare una run di valutazione per esaurimento della quota. Per questo il progetto non riporta metriche Gemini: il backend predefinito e misurato è LFM3 locale. La scelta è dichiarata anche nella relazione e nei limiti.
+> **Gemini.** Il backend cloud è implementato, ma non è stato possibile completare una run di valutazione per esaurimento della quota. Per questo il progetto non riporta metriche Gemini: il backend predefinito e misurato è LFM3 locale. La scelta è dichiarata anche nella relazione del pacchetto di consegna e nei limiti.
 
 ---
 
@@ -444,9 +446,11 @@ Le date della demo sono ancorate a `DEMO_TODAY` (default `2026-10-23`), così gl
 
 ---
 
-## 14. Struttura, codice e documenti
+## 14. Struttura, codice e materiale locale
 
-### Struttura
+### Struttura del repository
+
+Questa è la struttura versionata su GitHub. I file di consegna che non sono nel repository sono descritti subito dopo.
 
 ```
 progetto_finale_supporto_v2/
@@ -455,23 +459,12 @@ progetto_finale_supporto_v2/
 ├─ data/
 │  ├─ corpus/*.md             10 documenti di policy
 │  └─ support/*.json          dati demo sintetici
-├─ docs/
-│  ├─ architettura.png        diagramma del flusso
-│  ├─ guida_orale.md          domande e risposte per l'orale
-│  ├─ guida_orale.pdf         guida orale stampabile
-│  ├─ relazione_tecnica.pdf   relazione (4 pagine + appendice)
-│  ├─ valutazione_v2.png      grafico delle run
-│  └─ presentazione_v2.pptx   presentazione (12 slide)
 ├─ eval/
 │  ├─ scenarios.py            31 scenari
 │  ├─ run_eval.py             esecuzione e report
 │  └─ results/                JSON e Markdown delle run
 ├─ scripts/
-│  ├─ reset_demo.py           ripristino dati
-│  ├─ make_architecture.py    diagramma
-│  ├─ make_report.py          relazione PDF
-│  ├─ make_oral_guide.py      guida orale MD/PDF
-│  └─ make_presentazione.py   presentazione PPTX
+│  └─ reset_demo.py           ripristino dati
 ├─ src/supporto/
 │  ├─ agent.py                grafo e turni
 │  ├─ audit.py                audit log, ticket, ledger
@@ -490,6 +483,15 @@ progetto_finale_supporto_v2/
 └─ requirements-dev.txt
 ```
 
+### Materiale locale non versionato
+
+Nel pacchetto ZIP, accanto al repository, ci sono due gruppi di file:
+
+- `docs/`: relazione tecnica, guida orale in Markdown e PDF, presentazione, diagramma e grafico delle run;
+- `scripts/make_architecture.py`, `scripts/make_report.py`, `scripts/make_oral_guide.py` e `scripts/make_presentazione.py`: generano i documenti dai risultati reali.
+
+Questi file non sono su GitHub. Un clone del repository permette di eseguire UI, CLI, test e valutazione, ma non di rigenerare i documenti. `requirements-dev.txt` contiene le librerie necessarie agli script, che restano nel pacchetto locale.
+
 ### Mappa del codice
 
 La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 spiegano il flusso e le scelte; la sezione 15 entra nelle singole funzioni. Qui ci sono i punti di codice che non si deducono dal nome di una funzione.
@@ -505,7 +507,8 @@ La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 s
 | `src/supporto/memory.py`, `models.py`, `config.py` | Runtime | Preferenze esplicite con rimozione di email, telefoni e carte; reasoning finale spento solo per LFM3 locale; `Settings` e `demo_today` governano la riproducibilità. |
 | `app.py` + `cli.py` | Interfacce | UI con `st.session_state` e scheda di approvazione; CLI con ciclo degli interrupt. Entrambe usano lo stesso grafo, lo stesso ledger e gli stessi dati. |
 | `eval/` + `tests/` | Verifica | 31 scenari con tool, fonti, HITL, scritture e memoria attesi; ogni scenario gira su file temporanei. I test usano `ScriptedModel` e dati isolati. |
-| `src/supporto/support_data.py` + `scripts/` | Dati e deliverable | Seed `7`, 50 clienti, 200 ordini, ordini curati `ORD-1001`–`ORD-1008`; gli script rigenerano diagramma, PDF e PPTX dai dati reali. |
+| `src/supporto/support_data.py` | Dati demo | Seed `7`, 50 clienti, 200 ordini, ordini curati `ORD-1001`–`ORD-1008`. |
+| `scripts/reset_demo.py` | Ripristino demo | Ricrea i sei JSON e svuota l'audit; è l'unico script versionato. Gli altri script di generazione sono nel pacchetto locale. |
 
 ### Il turno in `agent.py`
 
@@ -569,13 +572,13 @@ La CLI espone gli stessi flussi da terminale: `start_turn`/`resume_turn`, `_hand
 
 I **60 test** usano `ScriptedModel`: un modello finto che restituisce risposte preparate, senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file, crea ledger e memoria isolati e costruisce il grafo con il modello scriptato. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
 
-### `support_data.py` e `scripts/`
+### `support_data.py` e script locali
 
 `support_data.py` genera 50 clienti, 200 ordini, 20 prodotti, 4 rimborsi iniziali, ticket e preferenze con seed `7`. Gli ordini curati `ORD-1001`–`ORD-1008` coprono i casi didattici: idoneo, fuori finestra, personalizzato, altro cliente, alto valore, in transito, igiene e difettoso. I dati sono fittizi e le date dipendono da `demo_today`.
 
-Gli script non fanno parte del runtime: `make_report.py` genera il PDF, `make_oral_guide.py` la guida orale in Markdown e PDF, `make_presentazione.py` il PPTX, `make_architecture.py` il diagramma e `reset_demo.py` ripristina i dati demo. Leggono le metriche da `eval/results/` e non inventano numeri.
+`reset_demo.py` è l'unico script versionato: ricrea i dati demo e svuota l'audit. Gli script `make_architecture.py`, `make_report.py`, `make_oral_guide.py` e `make_presentazione.py` non sono nel repository: generano diagramma, PDF, guida e PPTX dai risultati reali e sono inclusi nel pacchetto ZIP. Senza quei file, un clone GitHub resta eseguibile ma non può rigenerare i documenti.
 
-I PDF, la guida e il PPTX si rigenerano dai risultati reali con:
+Nel pacchetto locale, i documenti si rigenerano con:
 
 ```powershell
 python scripts/make_architecture.py
@@ -583,6 +586,8 @@ python scripts/make_report.py
 python scripts/make_oral_guide.py
 python scripts/make_presentazione.py
 ```
+
+Questi comandi non funzionano da un clone GitHub, perché gli script non sono versionati.
 
 ---
 
@@ -782,7 +787,7 @@ Questa sezione è il livello di lettura funzione per funzione. Le firme sono abb
 
 ### 15.6 Come leggere una scheda
 
-Per una domanda orale, la sequenza è: **firma → input/output → punto di scrittura → caso limite → test**. Se la funzione non scrive, la domanda centrale è quale dato non deve uscire; se scrive, la domanda è quali controlli precedono la scrittura. Le funzioni critiche sono quelle che possono cambiare lo stato: `proponi_rimborso`, `execute_refund`, `create_ticket`, `PreferenceMemory.add` e `finalize` (per l'audit). Le altre sono di lettura, calcolo o formattazione. La guida `docs/guida_orale.md` (e il PDF omonimo) raccoglie dodici risposte brevi, sei domande scomode e una scaletta della demo.
+Per una domanda orale, la sequenza è: **firma → input/output → punto di scrittura → caso limite → test**. Se la funzione non scrive, la domanda centrale è quale dato non deve uscire; se scrive, la domanda è quali controlli precedono la scrittura. Le funzioni critiche sono quelle che possono cambiare lo stato: `proponi_rimborso`, `execute_refund`, `create_ticket`, `PreferenceMemory.add` e `finalize` (per l'audit). Le altre sono di lettura, calcolo o formattazione. La guida inclusa nel pacchetto di consegna (`docs/guida_orale.md` e PDF omonimo) raccoglie dodici risposte brevi, sei domande scomode e una scaletta della demo.
 
 ---
 
