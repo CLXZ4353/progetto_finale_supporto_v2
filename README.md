@@ -499,7 +499,7 @@ La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 s
 | `app.py` + `cli.py` | Interfacce | UI con `st.session_state` e scheda di approvazione; CLI con ciclo degli interrupt. Entrambe usano lo stesso grafo, lo stesso ledger e gli stessi dati. |
 | `eval/` + `tests/` | Verifica | 31 scenari con tool, fonti, HITL, scritture e memoria attesi; ogni scenario gira su file temporanei. I test usano `ScriptedModel` e dati isolati. |
 | `src/supporto/support_data.py` | Dati demo | Seed `7`, 50 clienti, 200 ordini, ordini curati `ORD-1001`–`ORD-1008`. |
-| `scripts/reset_demo.py` | Ripristino demo | Ricrea i sei JSON e svuota l'audit; è l'unico script versionato. Gli altri script di generazione sono nel pacchetto locale. |
+| `scripts/reset_demo.py` | Ripristino demo | Ricrea i sei JSON e svuota l'audit; è l'unico script versionato. |
 
 ### Il turno in `agent.py`
 
@@ -563,22 +563,11 @@ La CLI espone gli stessi flussi da terminale: `start_turn`/`resume_turn`, `_hand
 
 I **60 test** usano `ScriptedModel`: un modello finto che restituisce risposte preparate, senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file, crea ledger e memoria isolati e costruisce il grafo con il modello scriptato. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
 
-### `support_data.py` e script locali
+### `support_data.py`
 
 `support_data.py` genera 50 clienti, 200 ordini, 20 prodotti, 4 rimborsi iniziali, ticket e preferenze con seed `7`. Gli ordini curati `ORD-1001`–`ORD-1008` coprono i casi didattici: idoneo, fuori finestra, personalizzato, altro cliente, alto valore, in transito, igiene e difettoso. I dati sono fittizi e le date dipendono da `demo_today`.
 
-`reset_demo.py` è l'unico script versionato: ricrea i dati demo e svuota l'audit. Gli script `make_architecture.py`, `make_report.py`, `make_oral_guide.py` e `make_presentazione.py` non sono nel repository: generano diagramma, PDF, guida e PPTX dai risultati reali e sono inclusi nel pacchetto ZIP. Senza quei file, un clone GitHub resta eseguibile ma non può rigenerare i documenti.
-
-Nel pacchetto locale, i documenti si rigenerano con:
-
-```powershell
-python scripts/make_architecture.py
-python scripts/make_report.py
-python scripts/make_oral_guide.py
-python scripts/make_presentazione.py
-```
-
-Questi comandi non funzionano da un clone GitHub, perché gli script non sono versionati.
+`scripts/reset_demo.py` ricrea quei dati e svuota l'audit; è l'unico script versionato.
 
 ---
 
