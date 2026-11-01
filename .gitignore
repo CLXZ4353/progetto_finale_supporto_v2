@@ -18,3 +18,6 @@ logs/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Documenti generati (consegnati fuori dal repository)
+docs/
