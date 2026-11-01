@@ -21,3 +21,7 @@ Thumbs.db
 
 # Documenti generati (consegnati fuori dal repository)
 docs/
+
+# Script di generazione documenti (restano fuori dal repository)
+scripts/*
+!scripts/reset_demo.py
