@@ -141,7 +141,7 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 - **Audit e ledger idempotente**: turni, accessi negati, rimborsi, ticket e rifiuti in `logs/audit.jsonl`.
 - **Valutazione automatica**: 31 scenari con tool attesi e vietati, fonti, HITL, scritture e assenza di effetti collaterali.
 - **CLI** con gli stessi flussi della UI e **selettore del modello**.
-- **Relazione tecnica** di 4 pagine e **presentazione** di 12 slide, generate dagli stessi dati.
+- **Relazione tecnica** di 4 pagine con appendice sulle funzioni Python, **guida orale** e **presentazione** di 12 slide, generate dagli stessi dati.
 
 Questi extra non sostituiscono i minimi: li rendono verificabili.
 
@@ -457,7 +457,9 @@ progetto_finale_supporto_v2/
 │  └─ support/*.json          dati demo sintetici
 ├─ docs/
 │  ├─ architettura.png        diagramma del flusso
-│  ├─ relazione_tecnica.pdf   relazione tecnica (4 pagine)
+│  ├─ guida_orale.md          domande e risposte per l'orale
+│  ├─ guida_orale.pdf         guida orale stampabile
+│  ├─ relazione_tecnica.pdf   relazione (4 pagine + appendice)
 │  ├─ valutazione_v2.png      grafico delle run
 │  └─ presentazione_v2.pptx   presentazione (12 slide)
 ├─ eval/
@@ -468,6 +470,7 @@ progetto_finale_supporto_v2/
 │  ├─ reset_demo.py           ripristino dati
 │  ├─ make_architecture.py    diagramma
 │  ├─ make_report.py          relazione PDF
+│  ├─ make_oral_guide.py      guida orale MD/PDF
 │  └─ make_presentazione.py   presentazione PPTX
 ├─ src/supporto/
 │  ├─ agent.py                grafo e turni
@@ -489,7 +492,7 @@ progetto_finale_supporto_v2/
 
 ### Mappa del codice
 
-La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 spiegano il flusso e le scelte; qui ci sono i punti di codice che non si deducono dal nome di una funzione.
+La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 spiegano il flusso e le scelte; la sezione 15 entra nelle singole funzioni. Qui ci sono i punti di codice che non si deducono dal nome di una funzione.
 
 | File | Ruolo | Dettagli da conoscere |
 |---|---|---|
@@ -570,19 +573,220 @@ I **60 test** usano `ScriptedModel`: un modello finto che restituisce risposte p
 
 `support_data.py` genera 50 clienti, 200 ordini, 20 prodotti, 4 rimborsi iniziali, ticket e preferenze con seed `7`. Gli ordini curati `ORD-1001`–`ORD-1008` coprono i casi didattici: idoneo, fuori finestra, personalizzato, altro cliente, alto valore, in transito, igiene e difettoso. I dati sono fittizi e le date dipendono da `demo_today`.
 
-Gli script non fanno parte del runtime: `make_report.py` genera il PDF, `make_presentazione.py` il PPTX, `make_architecture.py` il diagramma e `reset_demo.py` ripristina i dati demo. Leggono le metriche da `eval/results/` e non inventano numeri.
+Gli script non fanno parte del runtime: `make_report.py` genera il PDF, `make_oral_guide.py` la guida orale in Markdown e PDF, `make_presentazione.py` il PPTX, `make_architecture.py` il diagramma e `reset_demo.py` ripristina i dati demo. Leggono le metriche da `eval/results/` e non inventano numeri.
 
-I PDF e il PPTX si rigenerano dai risultati reali con:
+I PDF, la guida e il PPTX si rigenerano dai risultati reali con:
 
 ```powershell
 python scripts/make_architecture.py
 python scripts/make_report.py
+python scripts/make_oral_guide.py
 python scripts/make_presentazione.py
 ```
 
 ---
 
-## 15. Limiti
+## 15. Dettaglio delle funzioni Python
+
+Questa sezione è il livello di lettura funzione per funzione. Le firme sono abbreviate; `→` indica il valore restituito. Per le funzioni che concentrano logica di dominio riporto input, output, passi, casi limite e test che le coprono. Le funzioni di formattazione o di sola lettura sono raccolte nelle tabelle finali, con lo stesso criterio.
+
+### 15.1 Funzioni critiche
+
+#### `build_graph(settings=None, *, model=None, ledger=None, memory=None, checkpointer=None)`
+
+**Input → output.** Configurazione e dipendenze opzionali → grafo LangGraph compilato.
+
+**Cosa fa.** Risolve `Settings`, ledger e memoria; crea i sette tool con `make_tools`; sceglie il modello con `get_chat_model`; collega i tool al modello con `bind_tools`; costruisce i quattro nodi e gli archi; usa `InMemorySaver` se non riceve un checkpointer. Se il modello non è iniettato e il backend è LFM3 locale, crea un secondo modello con reasoning disattivato per `respond`: la scelta del tool può usare reasoning, la narrazione no.
+
+**Casi limite.** Con backend Gemini senza chiave, `get_chat_model` solleva `RuntimeError`. Un modello iniettato non viene sostituito: è il punto usato dai test con `ScriptedModel`. Il grafo non esegue nulla finché non arriva `start_turn`.
+
+**Test.** Tutti i test di `test_graph_flows.py` costruiscono il grafo reale con modello scriptato; `test_models.py` verifica la scelta del reasoning finale.
+
+#### `respond_node(state)`
+
+**Input → output.** Stato con messaggi → un `AIMessage` aggiunto a `messages`.
+
+**Cosa fa.** Cerca l'ultima richiesta umana, raccoglie i `ToolMessage` del turno, formatta i risultati con `_format_tool_result`, sceglie il prompt con `final_answer_prompt(tool_name)` e chiama il modello **senza tool**. La risposta viene passata a `extract_answer`: fuori dal blocco `<risposta>` il testo viene scartato.
+
+**Casi limite.** Se non ci sono risultati di tool usa il prompt di fallback. Se il modello restituisce contenuto vuoto, `finalize` applica il messaggio neutro. Un errore del modello si propaga al chiamante; non viene mascherato.
+
+**Test.** `test_risposta_finale_estrae_solo_il_blocco`, `test_dopo_approvazione_nessun_altro_tool`, `test_fonti_solo_dal_tool_di_policy`.
+
+#### `finalize(state)`
+
+**Input → output.** Stato del thread → `final_answer` e `sources`.
+
+**Cosa fa.** Individua l'inizio dell'ultimo turno con `last_human_index`, cerca all'indietro l'ultima `AIMessage` senza `tool_calls`, estrae il testo e lo usa come risposta. Raccoglie le fonti con `sources_from_messages`, i nomi dei tool del turno e scrive l'evento `turno` nell'audit, troncando la risposta a 500 caratteri.
+
+**Casi limite.** Se la risposta è vuota usa: «Non ho potuto completare la richiesta. Posso aprire un ticket per un operatore.» Non riusa mai la risposta del turno precedente, perché la ricerca parte dall'ultima richiesta umana. La scrittura dell'audit avviene alla fine del nodo: un errore di I/O si propaga.
+
+**Test.** `test_risposta_senza_tool`, `test_memoria_breve_tra_turni`, `test_nessun_fallback_deterministico` (il modello scriptato esaurito solleva errore, non produce una risposta fittizia).
+
+#### `stato_ordine(order_id, runtime)`
+
+**Input → output.** Numero ordine e runtime della sessione → testo leggibile con stato, articoli, totale, tracking e rimborso.
+
+**Cosa fa.** Legge il `customer_id` dallo stato del grafo con `_customer`; chiama `policy.find_order(order_id, customer_id)`. Se l'ordine non appartiene al cliente, registra `privacy_accesso_negato` e restituisce `PRIVACY_MESSAGE`. Se appartiene, formatta l'ordine senza nome, email, telefono o indirizzo.
+
+**Casi limite.** Ordine inesistente e ordine di un altro cliente producono lo stesso messaggio, a meno del numero richiesto. Il testo non contiene mai `customer_id`, contatti o note interne. La lettura del file può sollevare errore JSON e viene propagata.
+
+**Test.** `test_stato_ordine_del_cliente`, `test_ordine_altrui_uguale_a_ordine_inesistente`, `test_privacy_nessun_dato_di_altri_clienti`.
+
+#### `proponi_rimborso(order_id, runtime)`
+
+**Input → output.** Numero ordine e runtime → testo con esito, oppure sospensione HITL tramite `interrupt`.
+
+**Cosa fa.** Verifica il cliente e l'esistenza dell'ordine; applica `check_return_eligibility`; se non è idoneo restituisce il motivo senza aprire nulla; altrimenti calcola l'importo con `calculate_refund`, costruisce la proposta con `level` `operatore` o `responsabile` e chiama `interrupt({"type": "refund_approval", "proposal": ...})`. Dopo la ripresa, un rifiuto registra `rimborso_rifiutato`; un'approvazione passa a `ledger.execute_refund`.
+
+**Casi limite.** Un ordine non idoneo non produce interrupt e non scrive. Un'approvazione mancante o un `decision` non dizionario equivale a rifiuto. Il ledger può restituire `duplicato=True` o un motivo di errore; il tool traduce l'esito in testo e non scrive direttamente.
+
+**Test.** `test_rimborso_sospende_e_non_scrive`, `test_approvazione_scrive_una_sola_volta`, `test_rifiuto_non_scrive`, `test_importo_alto_richiede_responsabile`, `test_secondo_rimborso_bloccato_dal_ledger`, `test_proponi_rimborso_non_idoneo_non_scrive`.
+
+#### `check_return_eligibility(order, customer_id, *, today, refunds_path=None)`
+
+**Input → output.** Ordine, cliente e data di riferimento → dizionario con `eligible`, `reason`, `days_since_delivery`, `excluded_items`, `excluded_categories` e `policy_refs`.
+
+**Cosa fa.** Applica i controlli in ordine: cliente dell'ordine, rimborso già presente, ordine annullato, ordine consegnato, data di consegna, finestra di 30 giorni, articoli o categorie escluse. Le esclusioni valgono anche dentro la finestra e basta un articolo per bloccare il reso. L'esito è spiegabile e cita le sezioni del corpus.
+
+**Casi limite.** Una data di consegna mancante o non valida restituisce `days_since_delivery=None` e un motivo dedicato. Una data futura viene rifiutata. La funzione non si fida del filtro del tool: ricontrolla anche `customer_id`.
+
+**Test.** `test_idoneita_finestra_e_categorie`, `test_motivi_idoneita`, `test_verifica_reso_casi_principali`, `test_verifica_reso_usa_la_data_delle_settings`.
+
+#### `calculate_refund(order, *, requires_escalation_threshold=500.0)`
+
+**Input → output.** Ordine → dizionario con `items_total`, `discount`, `shipping_refund`, `total`, `requires_escalation` e `policy_refs`.
+
+**Cosa fa.** Somma `quantity × unit_price`, sottrae lo sconto e aggiunge la spedizione solo se il reso è a carico nostro (`defective` o `shipping_refundable`). Arrotonda a due decimali, evita totali negativi e confronta il totale con la soglia: l'escalation scatta sopra 500 EUR, non a 500 EUR esatti.
+
+**Casi limite.** Non decide l'idoneità: va chiamata solo dopo `check_return_eligibility`. Valori mancanti diventano zero; un valore non numerico solleva `ValueError` o `TypeError`. La soglia è un parametro, così il test può verificarla senza modificare il codice.
+
+**Test.** `test_rimborsi_calcolati_dalla_policy`, `test_importo_non_coerente_bloccato`, `test_importo_alto_richiede_responsabile`.
+
+#### `execute_refund(proposal, approval, *, thread_id=None)`
+
+**Input → output.** Proposta, decisione umana e thread → dizionario con `eseguito`, `duplicato`, `motivo` e, se presente, `rimborso`.
+
+**Cosa fa.** È l'unico punto che scrive un rimborso. Controlla l'approvazione, normalizza ordine, cliente e importo, acquisisce il lock, rilegge refunds e orders, blocca i duplicati, verifica che l'ordine esista e appartenga al cliente, confronta l'importo con `calculate_refund` (tolleranza 0,01 EUR), genera `RMB-2026-NNNN`, aggiorna entrambi i file e registra l'evento. La scrittura usa file temporaneo e `os.replace`.
+
+**Casi limite.** Un rifiuto è un esito (`eseguito=False`) e non un'eccezione. Un secondo tentativo restituisce `duplicato=True` senza scrivere. Un ordine inesistente, un cliente non coerente o un importo alterato restituiscono un motivo e un evento `rimborso_errore`. Il lock è di processo: non copre più istanze.
+
+**Test.** Tutti i test di `test_audit.py`; `test_approvazione_scrive_una_sola_volta`, `test_secondo_rimborso_bloccato_dal_ledger`, `test_dopo_approvazione_nessun_altro_tool`.
+
+#### `retrieve(query, *, k=None, settings=None)`
+
+**Input → output.** Query testuale → lista di `Document` ordinati per score BM25.
+
+**Cosa fa.** Ricostruisce l'indice a ogni chiamata con `_index`, tokenizza la query con sinonimi italiani e calcola i punteggi. Restituisce i primi `k` chunk con score positivo; `k` predefinito è `settings.top_k` (3). Ogni documento conserva fonte, sezione e `chunk_id`.
+
+**Casi limite.** Un chunk senza sovrapposizione lessicale non viene restituito: meglio nessuna fonte che una fonte falsa. Un corpus vuoto solleva `FileNotFoundError` da `load_corpus`. Non c'è cache, quindi una modifica ai documenti è visibile alla chiamata successiva.
+
+**Test.** `test_retrieval_bm25_trova_il_documento` (quattro query parametrizzate), `test_corpus_e_chunking`, `test_cerca_policy_restituisce_fonti`.
+
+#### `extract_answer(text)`
+
+**Input → output.** Testo grezzo del modello → contenuto del blocco `<risposta>`.
+
+**Cosa fa.** Cerca il primo blocco con `re.search`, accetta tag in maiuscolo o minuscolo e anche la chiusura mancante (`</risposta>` o fine testo), poi applica `strip()`. Se i tag non ci sono, restituisce il testo invariato: una risposta valida non va persa solo per un formato mancante.
+
+**Casi limite.** Il ragionamento fuori dai tag non arriva al cliente. Un testo vuoto restituisce stringa vuota e attiva il fallback di `finalize`. La funzione non interpreta il contenuto: non controlla numeri, fonti o lingua.
+
+**Test.** `test_extract_answer_rimuove_il_ragionamento`, `test_extract_answer_senza_tag_lascia_il_testo`, `test_risposta_finale_estrae_solo_il_blocco`.
+
+#### `_sanitize(text)` e `PreferenceMemory.add(customer_id, text, *, source="richiesta")`
+
+**Input → output.** Testo della preferenza → testo ripulito, oppure record salvato con `salvata=True/False`.
+
+**Cosa fa.** `_sanitize` normalizza gli spazi, maschera email, telefoni e numeri di carta, tronca a 200 caratteri. `add` scarta contenuti vuoti o ridotti a una sola maschera, confronta i duplicati senza distinzione tra maiuscole e minuscole, crea un record con UUID e timestamp e salva su file con sostituzione atomica.
+
+**Casi limite.** Una preferenza implicita non deve essere salvata: la regola è nel prompt e nella valutazione, non nella funzione. Un file corrotto viene ignorato in lettura; un errore di scrittura si propaga. La memoria conserva solo ciò che il cliente ha chiesto di ricordare.
+
+**Test.** `test_salva_e_rilegge`, `test_duplicato_non_salvato`, `test_pii_rimosse`, `test_clear_per_cliente`, `test_ricorda_preferenza_rimuove_pii`.
+
+### 15.2 Altre funzioni del grafo e dei tool
+
+| Funzione | Input → output | Comportamento e casi limite | Test |
+|---|---|---|---|
+| `new_thread_id()` | — → str | UUID esadecimale opaco; separa le conversazioni nello stesso processo. | Usata da tutti i flussi del grafo |
+| `agent_node(state)` | stato → `{"messages": [AIMessage]}` | Antepone `SYSTEM_PROMPT`, chiama il modello con i tool; il modello può restituire `tool_calls` o testo. | `test_graph_flows.py` |
+| `route_agent(state)` | stato → `"tools"` o `"finalize"` | Guarda l'ultimo messaggio: con `tool_calls` va ai tool, altrimenti chiude. Non esiste il ritorno a `agent`. | `test_tool_call_poi_risposta`, `test_risposta_senza_tool` |
+| `_format_tool_result(message)` | `ToolMessage` → str | Per `cerca_policy` estrae `contesto` dal JSON; per gli altri usa il testo. | `test_dopo_approvazione_nessun_altro_tool` |
+| `start_turn(graph, thread_id, customer_id, message)` | grafo, thread, cliente, testo → risultato | Azzera `final_answer` e `sources`, invoca il grafo con `recursion_limit=20`. | Tutti i test del grafo |
+| `resume_turn(graph, thread_id, decision)` | grafo, thread, decisione → risultato | Riprende l'interrupt con `Command(resume=decision)`. | `test_approvazione_scrive_una_sola_volta`, `test_rifiuto_non_scrive` |
+| `pending_interrupt(result)` | risultato → dict o None | Legge `__interrupt__`; accetta sia oggetti con `.value` sia dizionari. | `test_rimborso_sospende_e_non_scrive` |
+| `state_values(graph, thread_id)` | grafo, thread → dict | Restituisce i valori dello stato del thread. | Tutti i test del grafo |
+| `make_tools(ledger, memory, settings=None)` | dipendenze → lista di 7 tool | Chiude i tool su ledger, memoria e configurazione; le docstring sono lo schema visto dal modello. | `test_tools.py`, `test_scenarios.py` |
+| `_customer(runtime)` | runtime → str | Legge `customer_id` dallo stato del grafo; non è un argomento del modello. | `test_privacy_nessun_dato_di_altri_clienti` |
+| `_thread_id(runtime)` | runtime → str o None | Legge `thread_id` dalla configurazione del runtime per audit e ledger. | Indirettamente nei test HITL |
+| `cerca_policy(query, runtime)` | query → JSON str | Unisce query e ultima richiesta umana, chiama `retrieve`, restituisce `contesto` e `fonti`. | `test_cerca_policy_restituisce_fonti` |
+| `elenca_ordini(runtime)` | runtime → str | Filtra con `policy.list_orders`, costruisce una tabella Markdown; nessun ordine altrui. | `test_elenca_ordini_filtrato` |
+| `verifica_reso(order_id, runtime)` | ordine → str | Privacy, policy e testo deterministico con giorni, esclusioni e difettosità. | `test_verifica_reso_casi_principali` |
+| `apri_ticket(motivo, runtime)` | motivo → str | Priorità alta per responsabile, reclamo, urgenza o «vergognoso»; crea il ticket e cita le 24 ore. | `test_apri_ticket` |
+| `ricorda_preferenza(testo, runtime)` | testo → str | Chiama `memory.add` e riporta salvata/non salvata; non salva PII. | `test_ricorda_preferenza_rimuove_pii` |
+
+### 15.3 Policy, audit e ledger
+
+| Funzione | Input → output | Comportamento e casi limite | Test |
+|---|---|---|---|
+| `load_orders`, `load_customers`, `load_products`, `load_refunds` | percorso opzionale → lista o dict | Leggono il percorso indicato o quello predefinito; file assente → valore vuoto. JSON malformato → eccezione. | `test_policy_corpus.py`, `test_audit.py` |
+| `get_customer`, `get_product` | ID → dict o None | Ricerca lineare per ID. | Indirettamente |
+| `find_order(order_id, customer_id)` | IDs → dict o None | Normalizza l'ordine in maiuscolo e restituisce solo se il cliente coincide; input vuoto → None. | `test_ordine_di_altro_cliente_non_esiste` |
+| `list_orders(customer_id)` | cliente → lista | Filtra per cliente e ordina per data e numero, dal più recente. | `test_liste_ordini_separate_per_cliente` |
+| `_parse_date`, `days_since_delivery` | testo/data → date/int o None | Accetta i primi 10 caratteri ISO; una data invalida restituisce None. | `test_idoneita_finestra_e_categorie` |
+| `refund_for_order(order_id)` | ordine → dict o None | Cerca nel ledger dei rimborsi con chiave normalizzata. | `test_idempotenza` |
+| `format_eur(value)` | numero → str | Due decimali, virgola italiana e suffisso `EUR`. | `test_rimborsi_calcolati_dalla_policy` |
+| `AuditLedger.log(event, **fields)` | evento → record | Aggiunge timestamp, scarta i campi `None`, scrive una riga JSONL sotto lock. | `test_audit.py` |
+| `read_audit(limit=50)` | limite → lista | Legge le ultime righe, ignora quelle malformate; file assente → lista vuota. | `test_privacy_nessun_dato_di_altri_clienti` |
+| `create_ticket(...)` | dati ticket → dict | Genera `TKT-2026-NNNN`, salta i buchi, limita il messaggio e registra l'evento. | `test_ticket_progressivo`, `test_apri_ticket` |
+| `_next_refund_id(refunds)` | rimborsi → str | Trova il suffisso numerico più alto e restituisce `RMB-2026-NNNN`. | `test_idempotenza` |
+| `refunds()`, `tickets()` | — → dict | Leggono i file e restituiscono `{}` se il contenuto non è un dizionario. | `test_audit.py` |
+
+### 15.4 RAG, memoria, modelli e helper
+
+| Funzione | Input → output | Comportamento e casi limite | Test |
+|---|---|---|---|
+| `load_corpus(corpus_dir=None)` | cartella → lista di `Document` | Legge i `.md` in ordine alfabetico, salva fonte e titolo; corpus vuoto → `FileNotFoundError`. | `test_corpus_e_chunking` |
+| `split_documents(documents, chunk_size=650, chunk_overlap=50)` | documenti → chunk | Prima separa per titolo/sezione/sottosezione, poi applica il limite di caratteri; assegna `chunk_id`. | `test_corpus_e_chunking` |
+| `_tokens`, `_query_tokens` | testo → lista token | Normalizza in minuscolo, tiene lettere, numeri e accenti; la query aggiunge i sinonimi. | `test_retrieval_bm25_trova_il_documento` |
+| `_index(settings)` | settings → `(BM25Okapi, chunks)` | Ricostruisce l'indice a ogni query; nessuna cache da invalidare. | `test_retrieval_bm25_trova_il_documento` |
+| `format_context(documents)` | documenti → str | Numerazione `[S1]`, fonte, sezione e testo del chunk. | `test_cerca_policy_restituisce_fonti` |
+| `source_payload(documents)` | documenti → lista dict | Restituisce ID, fonte, `chunk_id`, sezione e snippet di 280 caratteri. | `test_sources_from_messages_deduplica_e_limita` |
+| `corpus_stats()` | — → dict | Conta documenti, chunk, caratteri totali e statistiche di lunghezza. | `test_corpus_e_chunking` |
+| `PreferenceMemory.__init__`, `_load`, `_save` | percorso → istanza | Carica solo record con testo; scarta file corrotto e record malformati; salva con file temporaneo. | `test_salva_e_rilegge` |
+| `get_preferences`, `get_profile` | cliente → lista/str | Restituisce copie dei record e unisce i testi con `; `. | `test_clear_per_cliente` |
+| `clear(customer_id=None)` | cliente opzionale → None | Cancella un cliente o tutta la memoria e salva. | `test_clear_per_cliente` |
+| `is_lfm3(model_id)` | ID → bool | Riconosce LFM3 senza distinzione tra maiuscole e minuscole. | `test_is_lfm3` |
+| `dedupe_models(models, *, preferred=None)` | lista → lista | Raggruppa per famiglia prima di `@`, conserva il primo alias e sostituisce o inserisce il preferito. | `test_dedupe_models_*` |
+| `final_reasoning_effort(settings)` | settings → str o None | Restituisce `"none"` solo per LFM3 locale; Gemini e gli altri modelli restano al default. | `test_final_reasoning_effort_solo_per_lfm3_locale` |
+| `get_chat_model(settings=None, *, reasoning_effort=None)` | settings → modello | Gemini richiede la chiave; locale usa `ChatOpenAI` con temperatura 0, timeout 120 e un retry. `reasoning_effort` vale solo per l'istanza. | Indirettamente; `test_models.py` |
+| `list_local_models(settings=None, timeout=2.0)` | settings → lista | Prova l'API v0 e poi `/models`; filtra gli LLM, mette i caricati in cima; ogni errore restituisce lista vuota. | Indirettamente nella UI |
+| `Settings.from_env()` | ambiente → Settings | Legge backend, modelli, URL, reasoning, data demo, top-k e chunking; una `DEMO_TODAY` invalida torna al 23 ottobre 2026. | `test_tools.py`, `tests/conftest.py` |
+| `Settings.model_label`, `get_settings()` | settings → str/Settings | Etichetta leggibile del modello; `get_settings` rilegge l'ambiente a ogni chiamata. | Indirettamente |
+
+### 15.5 Prompt, turni, interfacce e valutazione
+
+| Funzione | Input → output | Comportamento e casi limite | Test |
+|---|---|---|---|
+| `final_answer_prompt(tool_name)` | nome tool → str | Somma `FINAL_ANSWER_BASE`, l'istruzione specifica del tool e, se manca, il fallback; il contratto `<risposta>` resta sempre. | `test_risposta_finale_estrae_solo_il_blocco` |
+| `message_text(message)` | messaggio → str | Gestisce contenuto stringa o lista di blocchi; ignora i blocchi non testuali. | `test_message_text_gestisce_stringhe_e_blocchi` |
+| `last_human_index(messages)` | messaggi → int | Indice dell'ultima `HumanMessage`; se non ce ne sono restituisce 0. | `test_turn_messages_parte_dall_ultima_richiesta` |
+| `turn_messages`, `last_human_text` | messaggi → lista/str | Isolano l'ultimo turno e leggono l'ultima richiesta. | `test_turn_messages_parte_dall_ultima_richiesta` |
+| `tool_messages`, `tool_names` | messaggi → lista | Considerano solo i `ToolMessage` dell'ultimo turno. | `test_tool_names_e_tool_messages_solo_ultimo_turno` |
+| `sources_from_messages(messages)` | messaggi → lista dict | Interpreta il JSON di `cerca_policy`, deduplica per `(source, chunk_id)` e limita a 6 fonti. | `test_sources_from_messages_deduplica_e_limita` |
+| `app.call_turn`, `app.resume` | messaggio/decisione → None | Avviano o riprendono il turno; con un interrupt aperto non accettano un nuovo messaggio. | Manuale/UI |
+| `app.render_pending` | stato UI → None | Mostra proposta, importo e livello; sopra 500 EUR richiede una conferma esplicita. | Manuale/UI |
+| `cli._handle_interrupts` | grafo, thread, risultato → risultato | Ciclo di approvazione/rifiuto; per il livello `responsabile` chiede una seconda conferma. | Manuale/CLI |
+| `eval.run_scenario` | scenario, settings → dict | Crea dati temporanei, esegue il grafo, verifica tool, risposta, fonti, HITL, scritture, ticket e memoria, poi ripristina i percorsi. | `test_scenarios.py` per la coerenza dei dati |
+| `eval.summarize` | risultati → dict | Calcola pass rate, tool hit, source hit, HITL, refund safety e latenza usando solo gli scenari che prevedono il controllo. | Usata dalle run reali |
+| `eval.write_reports` | payload, risultati → percorsi | Scrive JSON completo, `latest.json`, Markdown e failure gallery. | Usata dalle run reali |
+| `ScriptedModel` (test) | risposte preparate → modello | Restituisce le `AIMessage` nell'ordine, registra le chiamate e fallisce quando le risposte finiscono. | `tests/conftest.py` |
+
+### 15.6 Come leggere una scheda
+
+Per una domanda orale, la sequenza è: **firma → input/output → punto di scrittura → caso limite → test**. Se la funzione non scrive, la domanda centrale è quale dato non deve uscire; se scrive, la domanda è quali controlli precedono la scrittura. Le funzioni critiche sono quelle che possono cambiare lo stato: `proponi_rimborso`, `execute_refund`, `create_ticket`, `PreferenceMemory.add` e `finalize` (per l'audit). Le altre sono di lettura, calcolo o formattazione. La guida `docs/guida_orale.md` (e il PDF omonimo) raccoglie dodici risposte brevi, sei domande scomode e una scaletta della demo.
+
+---
+
+## 16. Limiti
 
 - **Modelli piccoli**: LFM3 1.7B e Llama 3.2 3B (Unsloth) possono sbagliare la scelta del tool o riformulare i numeri. La valutazione misura questi errori e li rende visibili, senza correggerli a posteriori.
 - **Un passaggio di tool per turno**: una richiesta che richiede due azioni (es. stato ordine + policy resi) viene gestita in due turni. È una scelta deliberata: mantiene ogni turno verificabile.
@@ -593,6 +797,6 @@ python scripts/make_presentazione.py
 
 ---
 
-## 16. Nota sul progetto esteso
+## 17. Nota sul progetto esteso
 
 La v2 nasce come revisione autonoma di `progetto_finale_supporto`, che esplora un'architettura multi-agente con supervisore, review/reflection e RAG su Chroma. Qui il centro è un turno singolo, interamente verificabile, con policy, privacy e ledger nel codice. Le due versioni condividono i vincoli di dominio e il ledger; cambia il modo di arrivarci.

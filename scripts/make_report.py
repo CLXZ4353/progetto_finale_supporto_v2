@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Genera la relazione tecnica breve (4 pagine) della v2.
+"""Genera la relazione tecnica della v2: corpo di 4 pagine + appendice funzioni.
 
 Legge le metriche reali da eval/results: latest.json per LFM3 e l'ultima run
 Llama 3.2 3B (Unsloth) completa. Non inventa numeri.
@@ -530,6 +530,351 @@ story.append(
         "margine di errore esiste e dipende dal modello. Il secondo passo LLM separato riduce però il "
         "perimetro degli errori: la risposta può essere imprecisa, ma non può avviare un rimborso o "
         "cambiare cliente."
+    )
+)
+
+# --- appendice: funzioni Python --------------------------------------------
+story.append(PageBreak())
+story.append(dc.h2("Appendice A — Dettaglio delle funzioni Python"))
+story.append(
+    P(
+        "Il corpo della relazione resta di quattro pagine; questa appendice è il livello di lettura "
+        "funzione per funzione. Le schede seguono il percorso del turno e riportano input, output, "
+        "comportamento, casi limite e test. La versione completa, con tutte le funzioni di supporto, "
+        "è nel README (§15).",
+        "small",
+    )
+)
+
+
+def function_table(rows: list[list[str]]) -> object:
+    return dc.table(
+        [["Funzione", "Input → output", "Comportamento e casi limite", "Test"]] + rows,
+        [3.5 * cm, 4.0 * cm, 7.6 * cm, 2.5 * cm],
+        small=True,
+        pad=3,
+    )
+
+
+story.append(dc.h3("A.1 Grafo e turno — agent.py"))
+story.append(
+    function_table(
+        [
+            [
+                "<font face='Courier'>build_graph(...)</font>",
+                "Settings e dipendenze opzionali → grafo compilato",
+                "Crea tool e modelli, collega i tool, costruisce i quattro nodi e gli archi, usa "
+                "<font face='Courier'>InMemorySaver</font> se manca un checkpointer. Per LFM3 locale "
+                "crea un secondo modello con reasoning spento per <font face='Courier'>respond</font>.",
+                "Tutti i flussi; models",
+            ],
+            [
+                "<font face='Courier'>agent_node</font> + <font face='Courier'>route_agent</font>",
+                "stato → <font face='Courier'>AIMessage</font> / <font face='Courier'>\"tools\"</font> o <font face='Courier'>\"finalize\"</font>",
+                "Antepone il system prompt e chiama il modello con i tool. Se l'ultimo messaggio ha "
+                "<font face='Courier'>tool_calls</font> va a <font face='Courier'>tools</font>, altrimenti chiude. "
+                "Non esiste il ritorno da <font face='Courier'>tools</font> ad <font face='Courier'>agent</font>.",
+                "graph",
+            ],
+            [
+                "<font face='Courier'>respond_node</font>",
+                "stato → <font face='Courier'>AIMessage</font>",
+                "Legge l'ultima richiesta e i risultati dei tool, sceglie il prompt per tool e chiama "
+                "il modello senza tool. <font face='Courier'>extract_answer</font> scarta il ragionamento "
+                "fuori da <font face='Courier'>&lt;risposta&gt;</font>; un contenuto vuoto attiva il fallback.",
+                "graph, turns",
+            ],
+            [
+                "<font face='Courier'>finalize</font>",
+                "stato → <font face='Courier'>final_answer</font>, <font face='Courier'>sources</font>",
+                "Cerca l'ultima AI del turno corrente, non del precedente. Se è vuota usa il messaggio "
+                "neutro, raccoglie fonti e tool e scrive l'evento <font face='Courier'>turno</font> con "
+                "risposta troncata a 500 caratteri.",
+                "graph",
+            ],
+            [
+                "<font face='Courier'>start_turn</font> / <font face='Courier'>resume_turn</font>",
+                "grafo, thread, input → risultato",
+                "Il primo azzera risposta e fonti e invoca il grafo con <font face='Courier'>recursion_limit=20</font>; "
+                "il secondo riprende l'interrupt con <font face='Courier'>Command(resume=...)</font>.",
+                "graph, HITL",
+            ],
+            [
+                "<font face='Courier'>pending_interrupt</font> / <font face='Courier'>state_values</font>",
+                "risultato/grafo → dict",
+                "Il primo legge <font face='Courier'>__interrupt__</font> e normalizza oggetto o dizionario; "
+                "il secondo restituisce i valori dello stato del thread.",
+                "graph",
+            ],
+        ]
+    )
+)
+
+story.append(Spacer(1, 0.15 * cm))
+story.append(dc.h3("A.2 Tool e dominio — tools.py, policy.py"))
+story.append(
+    function_table(
+        [
+            [
+                "<font face='Courier'>make_tools</font> / <font face='Courier'>_customer</font>",
+                "ledger, memoria, settings → sette tool",
+                "I tool sono chiusi sulle dipendenze della sessione; <font face='Courier'>_customer</font> legge "
+                "il cliente dallo stato del grafo, mai dagli argomenti del modello.",
+                "tools, eval",
+            ],
+            [
+                "<font face='Courier'>cerca_policy</font>",
+                "query → JSON con contesto e fonti",
+                "Unisce la query all'ultima richiesta umana, chiama <font face='Courier'>retrieve</font> e "
+                "restituisce fonti <font face='Courier'>[S1]</font>–<font face='Courier'>[S3]</font>.",
+                "tools",
+            ],
+            [
+                "<font face='Courier'>stato_ordine</font> / <font face='Courier'>elenca_ordini</font>",
+                "ordine o runtime → testo",
+                "Filtrano per cliente. Un ordine altrui e uno inesistente producono lo stesso messaggio; "
+                "l'elenco non mostra mai identificativi o contatti del profilo.",
+                "tools",
+            ],
+            [
+                "<font face='Courier'>verifica_reso</font>",
+                "ordine → testo",
+                "Applica la policy con la data demo, riporta giorni, categorie escluse e difettosità. "
+                "Un ordine non trovato passa prima dal controllo privacy.",
+                "tools, policy",
+            ],
+            [
+                "<font face='Courier'>proponi_rimborso</font>",
+                "ordine → testo o interrupt",
+                "Verifica idoneità e cliente, calcola l'importo, costruisce la proposta e chiama "
+                "<font face='Courier'>interrupt</font>. Un rifiuto non scrive; un'approvazione passa al ledger. "
+                "Un ordine non idoneo non apre nulla.",
+                "graph, HITL",
+            ],
+            [
+                "<font face='Courier'>apri_ticket</font> / <font face='Courier'>ricorda_preferenza</font>",
+                "testo → testo",
+                "Il primo calcola la priorità da parole di escalation e crea il ticket; il secondo salva "
+                "solo preferenze esplicite, con PII mascherate e duplicati ignorati.",
+                "tools, memory",
+            ],
+            [
+                "<font face='Courier'>find_order</font> / <font face='Courier'>list_orders</font>",
+                "ID/cliente → dict o lista",
+                "Normalizzano l'ID e filtrano sempre per cliente. <font face='Courier'>find_order</font> non "
+                "distingue un ordine altrui da uno inesistente; la lista è ordinata dal più recente.",
+                "policy",
+            ],
+            [
+                "<font face='Courier'>check_return_eligibility</font>",
+                "ordine, cliente, data → dict",
+                "Controlla cliente, rimborso, stato, consegna, data, finestra di 30 giorni ed esclusioni. "
+                "Restituisce motivo, giorni, articoli/categorie esclusi e riferimenti alla policy.",
+                "policy",
+            ],
+            [
+                "<font face='Courier'>calculate_refund</font>",
+                "ordine → dict",
+                "Somma articoli, sottrae lo sconto e aggiunge la spedizione solo se il reso è a carico nostro. "
+                "Arrotonda a due decimali; l'escalation scatta sopra 500 EUR.",
+                "policy",
+            ],
+            [
+                "<font face='Courier'>execute_refund</font>",
+                "proposta, approvazione → dict",
+                "Unico punto di scrittura. Ricontrolla approvazione, ordine, cliente, importo e duplicati; "
+                "scrive refunds e orders con file temporanei e <font face='Courier'>os.replace</font>.",
+                "audit",
+            ],
+        ]
+    )
+)
+
+story.append(Spacer(1, 0.15 * cm))
+story.append(dc.h3("A.3 Dati, risposta e verifica — gli altri moduli"))
+story.append(
+    function_table(
+        [
+            [
+                "<font face='Courier'>AuditLedger.log</font> / <font face='Courier'>read_audit</font>",
+                "evento/limite → record/lista",
+                "Scrive JSONL sotto lock, scarta i campi <font face='Courier'>None</font> e ignora le righe "
+                "malformate in lettura. Gli eventi coprono turni, privacy, ticket e rimborsi.",
+                "audit",
+            ],
+            [
+                "<font face='Courier'>create_ticket</font> / <font face='Courier'>_next_refund_id</font>",
+                "dati → ticket/ID",
+                "Il ticket usa <font face='Courier'>TKT-2026-NNNN</font> e salta i buchi; il rimborso usa il "
+                "suffisso numerico più alto e restituisce <font face='Courier'>RMB-2026-NNNN</font>.",
+                "audit",
+            ],
+            [
+                "<font face='Courier'>load_corpus</font> / <font face='Courier'>split_documents</font>",
+                "cartella/documenti → chunk",
+                "Legge i dieci Markdown, separa per titolo, sezione e sottosezione, poi applica chunk "
+                "650/50 e assegna un <font face='Courier'>chunk_id</font> univoco.",
+                "corpus",
+            ],
+            [
+                "<font face='Courier'>retrieve</font> / <font face='Courier'>format_context</font>",
+                "query → documenti/testo",
+                "BM25 ricostruito a ogni query, top-k con score positivo, sinonimi italiani e fonti "
+                "<font face='Courier'>[S1]</font>–<font face='Courier'>[S3]</font> numerate.",
+                "corpus",
+            ],
+            [
+                "<font face='Courier'>_sanitize</font> / <font face='Courier'>PreferenceMemory.add</font>",
+                "testo → record o esito",
+                "Maschera email, telefoni e carte, tronca a 200 caratteri, ignora duplicati e salva con "
+                "sostituzione atomica. Una preferenza implicita non viene salvata dal prompt.",
+                "memory, tools",
+            ],
+            [
+                "<font face='Courier'>get_chat_model</font> / <font face='Courier'>final_reasoning_effort</font>",
+                "settings → modello/str",
+                "Gemini richiede la chiave; locale usa temperatura 0, timeout 120 e un retry. Il reasoning "
+                "finale è <font face='Courier'>\"none\"</font> solo per LFM3 locale.",
+                "models",
+            ],
+            [
+                "<font face='Courier'>extract_answer</font> / <font face='Courier'>sources_from_messages</font>",
+                "testo/messaggi → risposta/fonti",
+                "Il primo isola <font face='Courier'>&lt;risposta&gt;</font> e lascia il testo se i tag mancano; "
+                "il secondo interpreta il JSON di <font face='Courier'>cerca_policy</font>, deduplica e limita a 6 fonti.",
+                "turns",
+            ],
+            [
+                "<font face='Courier'>eval.run_scenario</font> / <font face='Courier'>summarize</font>",
+                "scenario/risultati → dict",
+                "Ogni scenario usa file temporanei; verifica tool, risposta, fonti, HITL, scritture e memoria. "
+                "Il riepilogo calcola le metriche solo sugli scenari che prevedono quel controllo.",
+                "eval",
+            ],
+        ]
+    )
+)
+story.append(Spacer(1, 0.12 * cm))
+story.append(
+    P(
+        "Le etichette della colonna <b>Test</b> rimandano ai file <font face='Courier'>tests/test_*.py</font>: "
+        "<i>graph</i>, <i>tools</i>, <i>policy</i>, <i>audit</i>, <i>corpus</i>, <i>memory</i>, "
+        "<i>models</i>, <i>turns</i> ed <i>eval</i>. La mappatura completa, test per test, è nel README §15.",
+        "small",
+    )
+)
+story.append(
+    P(
+        "Le funzioni che possono cambiare lo stato sono cinque: <font face='Courier'>proponi_rimborso</font>, "
+        "<font face='Courier'>execute_refund</font>, <font face='Courier'>create_ticket</font>, "
+        "<font face='Courier'>PreferenceMemory.add</font> e <font face='Courier'>finalize</font> per l'audit. "
+        "Per ognuna la domanda orale è la stessa: quali controlli precedono la scrittura e quale test "
+        "dimostra che un errore non la esegue.",
+        "small",
+    )
+)
+
+story.append(dc.h2("A.4 Tre funzioni raccontate"))
+story.append(
+    P(
+        "Le tabelle precedenti danno la mappa; queste tre schede mostrano il livello di dettaglio "
+        "utile all'orale. Sono le funzioni su cui si concentrano le domande su privacy, HITL e policy.",
+        "small",
+    )
+)
+
+story.append(dc.h3("proponi_rimborso(order_id, runtime)"))
+story.append(
+    P(
+        "<b>Input → output.</b> Numero ordine e runtime della sessione → testo con l'esito, oppure "
+        "sospensione del turno con una proposta HITL.",
+        "small",
+    )
+)
+story += dc.bullets(
+    [
+        "Legge il cliente dallo stato con <font face='Courier'>_customer</font> e cerca l'ordine con "
+        "<font face='Courier'>find_order</font>: un ordine altrui o inesistente produce lo stesso messaggio e un evento privacy.",
+        "Applica <font face='Courier'>check_return_eligibility</font> con la data demo. Se l'ordine non è idoneo, "
+        "restituisce il motivo e non apre alcun interrupt.",
+        "Calcola l'importo con <font face='Courier'>calculate_refund</font> e costruisce la proposta con ordine, "
+        "cliente, importo, motivo, articoli e livello.",
+        "Chiama <font face='Courier'>interrupt({\"type\": \"refund_approval\", \"proposal\": ...})</font>: da qui "
+        "il turno è sospeso e nessuna scrittura è avvenuta.",
+        "Dopo la ripresa, un rifiuto registra <font face='Courier'>rimborso_rifiutato</font> e restituisce un testo; "
+        "un'approvazione chiama <font face='Courier'>execute_refund</font>.",
+        "Traduce l'esito del ledger in testo: eseguito, duplicato o errore. Non scrive mai direttamente.",
+    ]
+)
+story.append(
+    P(
+        "<b>Casi limite e test.</b> Un ordine non idoneo non produce interrupt; un'approvazione mancante "
+        "equivale a rifiuto; un secondo tentativo viene bloccato dal ledger. I test sono "
+        "<font face='Courier'>test_rimborso_sospende_e_non_scrive</font>, "
+        "<font face='Courier'>test_approvazione_scrive_una_sola_volta</font> e "
+        "<font face='Courier'>test_rifiuto_non_scrive</font>.",
+        "small",
+    )
+)
+
+story.append(dc.h3("execute_refund(proposal, approval, *, thread_id=None)"))
+story.append(
+    P(
+        "<b>Input → output.</b> Proposta, decisione umana e thread → dizionario con "
+        "<font face='Courier'>eseguito</font>, <font face='Courier'>duplicato</font>, "
+        "<font face='Courier'>motivo</font> e, se presente, <font face='Courier'>rimborso</font>.",
+        "small",
+    )
+)
+story += dc.bullets(
+    [
+        "Controlla <font face='Courier'>approval[\"approved\"]</font>: senza approvazione registra il rifiuto e "
+        "restituisce <font face='Courier'>eseguito=False</font>.",
+        "Normalizza ordine, cliente e importo e acquisisce il lock; rilegge refunds e orders dal disco.",
+        "Blocca il duplicato sia sulla chiave ordine sia su un record storico con lo stesso ordine.",
+        "Verifica che l'ordine esista, che il cliente coincida e che l'importo corrisponda a "
+        "<font face='Courier'>calculate_refund</font> entro 0,01 EUR.",
+        "Genera <font face='Courier'>RMB-2026-NNNN</font>, aggiorna refunds e orders, sostituisce i file con "
+        "<font face='Courier'>os.replace</font> e registra <font face='Courier'>rimborso_eseguito</font>.",
+    ]
+)
+story.append(
+    P(
+        "<b>Limite dichiarato.</b> La coppia di file non è una transazione unica: un crash tra le due "
+        "sostituzioni può lasciare i due file disallineati. Il lock è di processo, quindi la demo non è "
+        "pensata per più istanze. I test <font face='Courier'>test_senza_approvazione_non_scrive</font>, "
+        "<font face='Courier'>test_importo_non_coerente_bloccato</font> e "
+        "<font face='Courier'>test_idempotenza</font> coprono i confini principali.",
+        "small",
+    )
+)
+
+story.append(dc.h3("check_return_eligibility(order, customer_id, *, today, refunds_path=None)"))
+story.append(
+    P(
+        "<b>Input → output.</b> Ordine, cliente e data di riferimento → dizionario con idoneità, motivo, "
+        "giorni dalla consegna, articoli e categorie esclusi e riferimenti alla policy.",
+        "small",
+    )
+)
+story += dc.bullets(
+    [
+        "Rifiuta un ordine di un altro cliente: è una difesa ridondante rispetto al filtro del tool.",
+        "Rifiuta un ordine già rimborsato, annullato o non ancora consegnato: la finestra decorre dalla consegna.",
+        "Calcola i giorni con <font face='Courier'>days_since_delivery</font>; una data mancante o futura "
+        "produce un motivo dedicato.",
+        "Se i giorni superano 30, restituisce il numero esatto e la finestra. Se sono entro 30, controlla "
+        "gli articoli: basta un articolo personalizzato, di igiene, digitale o in fine serie per bloccare.",
+        "Restituisce sempre un esito spiegabile; non scrive nulla e non decide l'importo.",
+    ]
+)
+story.append(
+    P(
+        "<b>Test.</b> <font face='Courier'>test_idoneita_finestra_e_categorie</font> copre i sei ordini "
+        "curati; <font face='Courier'>test_motivi_idoneita</font> controlla i motivi; "
+        "<font face='Courier'>test_verifica_reso_usa_la_data_delle_settings</font> dimostra che la data "
+        "non è letta dall'orologio di sistema.",
+        "small",
     )
 )
 
