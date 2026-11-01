@@ -446,11 +446,11 @@ Le date della demo sono ancorate a `DEMO_TODAY` (default `2026-10-23`), così gl
 
 ---
 
-## 14. Struttura, codice e materiale locale
+## 14. Struttura e codice
 
 ### Struttura del repository
 
-Questa è la struttura versionata su GitHub. I file di consegna che non sono nel repository sono descritti subito dopo.
+Questa è la struttura versionata su GitHub.
 
 ```
 progetto_finale_supporto_v2/
@@ -482,15 +482,6 @@ progetto_finale_supporto_v2/
 ├─ requirements.txt
 └─ requirements-dev.txt
 ```
-
-### Materiale locale non versionato
-
-Nel pacchetto ZIP, accanto al repository, ci sono due gruppi di file:
-
-- `docs/`: relazione tecnica, guida orale in Markdown e PDF, presentazione, diagramma e grafico delle run;
-- `scripts/make_architecture.py`, `scripts/make_report.py`, `scripts/make_oral_guide.py` e `scripts/make_presentazione.py`: generano i documenti dai risultati reali.
-
-Questi file non sono su GitHub. Un clone del repository permette di eseguire UI, CLI, test e valutazione, ma non di rigenerare i documenti. `requirements-dev.txt` contiene le librerie necessarie agli script, che restano nel pacchetto locale.
 
 ### Mappa del codice
 
