@@ -147,7 +147,6 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 - **Audit e ledger idempotente**: turni, accessi negati, rimborsi, ticket e rifiuti in `logs/audit.jsonl`.
 - **Valutazione automatica**: 31 scenari con tool attesi e vietati, fonti, HITL, scritture e assenza di effetti collaterali.
 - **CLI** con gli stessi flussi della UI e **selettore del modello**.
-- **Materiale di consegna**: relazione tecnica di 4 pagine con appendice sulle funzioni Python, guida orale e presentazione di 12 slide. Sono inclusi nel pacchetto ZIP, non nel repository GitHub.
 
 Questi extra non sostituiscono i minimi: li rendono verificabili.
 
