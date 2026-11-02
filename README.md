@@ -4,7 +4,7 @@ Assistente clienti in italiano per l'e-commerce fittizio **Casa & Regali**. Risp
 
 > **La tesi del progetto:** l'LLM sceglie il tool e scrive la risposta. Il codice decide cosa è consentito: policy, privacy, HITL e ledger non dipendono dal prompt.
 
-La **v2** è la versione ottimizzata del progetto finale del corso **LLM & Agentic AI**: un solo agente, sette tool, un solo passaggio di tool per turno. Ogni turno lascia un esito leggibile, registrato e valutabile. Il modello predefinito è **LFM3-1.7B Q4_K_M**, servito da LM Studio; il backend Gemini è configurabile ma non è stato misurato (vedi §5).
+La **v2** è la versione ottimizzata del progetto finale del corso **LLM & Agentic AI**: un solo agente, sette tool, un solo passaggio di tool per turno. Ogni turno lascia un esito leggibile, registrato e valutabile. Il modello predefinito è **LFM3-1.7B Q4_K_M**, servito da LM Studio; il backend Gemini è configurabile e ha superato uno smoke test, ma non ha una run completa (vedi §5).
 
 Il grafo del turno usa **LangChain** e **LangGraph**, il retrieval è **BM25** sul corpus di policy, la UI è **Streamlit** e la CLI espone gli stessi flussi.
 
@@ -110,7 +110,11 @@ Il system prompt usa tre tecniche, scelte per un modello piccolo:
 - **few-shot**: esempi di scelta del tool e di risposta diretta, per ancorare il formato e ridurre le deviazioni;
 - **output strutturato**: lo schema degli argomenti è generato da LangChain a partire dalle annotazioni dei tool, quindi il modello non può inventare campi o formati.
 
+Non chiedo chain-of-thought esplicito: con LFM3 il reasoning è già nel modello e nel passo finale il contratto `<risposta>` lascia fuori il ragionamento. Aggiungere passaggi scritti nel prompt allungherebbe il contesto e aumenterebbe il rischio che il testo interno arrivi al cliente.
+
 Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiare sono più affidabili di un elenco lungo. Il prompt della risposta finale riceve solo la richiesta del cliente e gli esiti dei tool, vieta calcoli e dati inventati, e non può avviare altre azioni. Cambia in base al tool eseguito: un'istruzione mirata (2-4 frasi, dati essenziali) riduce le divagazioni rispetto a un'unica checklist valida per tutti i casi. Il modello deve scrivere la risposta tra `<risposta>` e `</risposta>`; `extract_answer()` in `turns.py` scarta tutto ciò che sta fuori dal blocco, così l'eventuale ragionamento non arriva al cliente. Se i tag mancano, il testo resta invariato per non perdere una risposta valida.
+
+**Perché un tool e non solo prompting.** Il prompt può descrivere una regola, ma non può leggere `orders.json`, filtrare gli ordini per cliente, calcolare un rimborso o sospendere il turno. I tool sono l'unico punto in cui il modello ottiene dati di dominio; `ToolRuntime` inietta il `customer_id`, `policy.py` applica le regole e il ledger rivalida prima della scrittura. Senza tool il modello dovrebbe inventare ordini e importi e non ci sarebbe un punto deterministico per l'HITL: è il motivo per cui `stato_ordine`, `verifica_reso` e `proponi_rimborso` sono codice e non istruzioni nel prompt.
 
 ---
 
@@ -120,7 +124,7 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 
 | Requisito | Come è coperto | Evidenza |
 |---|---|---|
-| Modello via API | Backend locale LM Studio su endpoint OpenAI-compatibile e backend cloud Gemini 2.5 Flash in `models.py` | Run LFM3 31/31; Gemini configurabile ma non misurato per quota |
+| Modello via API | Backend locale LM Studio su endpoint OpenAI-compatibile e backend cloud Gemini 2.5 Flash in `models.py` | Run LFM3 31/31; smoke test Gemini: 9 scenari eseguiti, 9 superati. Run completa bloccata dal limite free tier di 20 richieste/giorno |
 | Almeno 2 tecniche di prompting | Ruolo e vincoli, few-shot, output strutturato dei tool, prompt separato per la risposta | `src/supporto/prompts.py` |
 | Almeno 1 tool custom LangChain | 7 tool in `src/supporto/tools.py`, con `@tool` e `ToolRuntime` | 7 tool, tutti usati negli scenari |
 | Memoria a breve termine | Checkpointer LangGraph `InMemorySaver`, un `thread_id` per conversazione | Test di memoria tra turni |
@@ -147,7 +151,7 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 
 Questi extra non sostituiscono i minimi: li rendono verificabili.
 
-> **Gemini.** Il backend cloud è implementato, ma non è stato possibile completare una run di valutazione per esaurimento della quota. Per questo il progetto non riporta metriche Gemini: il backend predefinito e misurato è LFM3 locale. La scelta è dichiarata anche nella relazione del pacchetto di consegna e nei limiti.
+> **Gemini.** Il backend cloud è implementato e risponde: nello smoke test del 2 novembre 2026 ha eseguito 9 scenari, superandoli tutti. La run completa non è stata possibile perché il free tier consente 20 richieste al giorno; i 22 scenari restanti hanno ricevuto `429` e non sono una misura di qualità. Il backend predefinito e misurato resta LFM3 locale. La scelta è dichiarata anche nella relazione del pacchetto di consegna e nei limiti.
 
 ---
 
@@ -156,8 +160,8 @@ Questi extra non sostituiscono i minimi: li rendono verificabili.
 ### Prerequisiti
 
 - Python **3.11**
-- (opzionale) LM Studio con `lfm3-1.7b@q4_k_m` su `http://localhost:1234/v1`
-- (opzionale) chiave Google AI Studio per Gemini
+- LM Studio con `lfm3-1.7b@q4_k_m` su `http://localhost:1234/v1` per il backend predefinito `local`
+- (alternativa) chiave Google AI Studio per il backend `gemini`
 
 ### Installazione
 
