@@ -13,7 +13,7 @@ Questo repository contiene runtime, dati, test e valutazione. I documenti di con
 | Metrica | Valore |
 |---|---|
 | Scenari superati con LFM3 | **31/31** |
-| Test automatici | **60** |
+| Test automatici | **62** |
 | Tool | **7** |
 | Documenti nel corpus | **10** |
 | Nodi del grafo | **4** |
@@ -143,7 +143,7 @@ Il prompt di scelta è volutamente breve: con modelli da 1-3B poche regole chiar
 
 ### Extra utili, non requisiti
 
-- **Memoria a lungo termine** (`PreferenceMemory`): salva solo preferenze chieste esplicitamente, rimuove email, telefoni e carte, ignora i duplicati.
+- **Memoria a lungo termine** (`PreferenceMemory`): salva solo preferenze chieste esplicitamente, rimuove email, telefoni e carte, ignora i duplicati e le reinserisce nel system prompt del cliente nei turni successivi.
 - **Audit e ledger idempotente**: turni, accessi negati, rimborsi, ticket e rifiuti in `logs/audit.jsonl`.
 - **Valutazione automatica**: 31 scenari con tool attesi e vietati, fonti, HITL, scritture e assenza di effetti collaterali.
 - **CLI** con gli stessi flussi della UI e **selettore del modello**.
@@ -267,7 +267,7 @@ START → agent → tools → respond → finalize → END
              ↘ finalize
 ```
 
-- **`agent`**: l'LLM riceve system prompt e conversazione, e sceglie un tool oppure risponde direttamente.
+- **`agent`**: l'LLM riceve il system prompt, con le preferenze salvate del cliente, e la conversazione; sceglie un tool oppure risponde direttamente.
 - **`tools`**: `ToolNode` esegue il tool scelto. I tool leggono i dati del cliente dal runtime; il modello non può indicare un cliente diverso.
 - **`respond`**: secondo passo LLM **senza tool**. Riceve la richiesta del cliente e gli esiti dei tool, e scrive la risposta finale con un prompt specifico per il tool. Il codice estrae il blocco `<risposta>` e salva solo quello. Non può avviare altre azioni.
 - **`finalize`**: salva risposta, fonti e tool usati, e scrive il turno nell'audit.
@@ -326,7 +326,7 @@ BM25 è adatto a questo corpus: dieci documenti brevi, dominio lessicale stabile
 ### Memoria breve e lungo termine
 
 - **Breve termine**: `InMemorySaver`, mantiene il contesto del thread tra un turno e l'altro.
-- **Lungo termine**: `PreferenceMemory` salva solo preferenze che il cliente chiede esplicitamente di ricordare («ricorda che...»). Email, telefoni e numeri di carta vengono rimossi prima del salvataggio; i duplicati vengono ignorati.
+- **Lungo termine**: `PreferenceMemory` salva solo preferenze che il cliente chiede esplicitamente di ricordare («ricorda che...»). Email, telefoni e numeri di carta vengono rimossi prima del salvataggio; i duplicati vengono ignorati. A ogni turno `agent_node` legge il profilo del cliente del thread e lo aggiunge al system prompt: una nuova conversazione ritrova le preferenze, un altro cliente no.
 
 La memoria non è un profilo CRM: contiene solo ciò che il cliente ha chiesto di ricordare. Una preferenza espressa senza richiesta esplicita non viene memorizzata.
 
@@ -402,7 +402,7 @@ I test sono di **unità e integrazione**: verificano che il codice rispetti i co
 
 | File | Test | Cosa verifica |
 |---|---:|---|
-| `test_graph_flows.py` | 15 | Turno completo con tool, risposta senza tool, estrazione del blocco `<risposta>`, fonti, privacy, HITL, rimborso approvato/rifiutato/non idoneo, blocco del secondo rimborso, memoria breve tra turni, assenza di fallback. |
+| `test_graph_flows.py` | 17 | Turno completo con tool, risposta senza tool, estrazione del blocco `<risposta>`, fonti, privacy, HITL, rimborso approvato/rifiutato/non idoneo, blocco del secondo rimborso, memoria breve tra turni, memoria lunga in un nuovo thread e isolamento tra clienti, assenza di fallback. |
 | `test_tools.py` | 9 | Chiamata diretta dei sette tool: fonti BM25, stato ordine, stesso messaggio per ordine altrui e inesistente, elenco filtrato, casi di reso, data di `Settings`, rimborso non idoneo, rimozione PII e ticket. |
 | `test_policy_corpus.py` | 13 | Costanti della policy, coerenza numerica tra codice e documenti Markdown, filtro per cliente, albero di idoneità, calcolo dei rimborsi, chunking e retrieval BM25 su query reali. |
 | `test_audit.py` | 5 | Ledger senza approvazione, importo non coerente, cliente non coerente, idempotenza del rimborso e numerazione progressiva dei ticket. |
@@ -412,7 +412,7 @@ I test sono di **unità e integrazione**: verificano che il codice rispetti i co
 | `test_scenarios.py` | 1 | Coerenza dei 31 scenari: ID unici, clienti esistenti, tool e fonti validi, `approve` presente quando c'è un interrupt, rimborso eseguito solo con approvazione. |
 | `test_support_data.py` | 2 | I sei JSON vengono creati e la generazione è riproducibile con lo stesso seed. |
 
-In totale sono **60 test** (57 funzioni, una parametrizzata su quattro query BM25).
+In totale sono **62 test** (59 funzioni, una parametrizzata su quattro query BM25).
 
 **Esempi di ciò che viene bloccato**
 
@@ -432,7 +432,7 @@ python -m pytest -q tests/test_graph_flows.py
 python -m pytest -q tests/test_audit.py::test_idempotenza
 ```
 
-Stato attuale: **60 passed**.
+Stato attuale: **62 passed**.
 
 ---
 
@@ -481,7 +481,7 @@ progetto_finale_supporto_v2/
 │  ├─ support_data.py         generazione dati demo
 │  ├─ tools.py                7 tool LangChain
 │  └─ turns.py                helper di messaggi e turni
-├─ tests/                     60 test
+├─ tests/                     62 test
 ├─ .env.example
 ├─ requirements.txt
 └─ requirements-dev.txt
@@ -508,7 +508,7 @@ La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 s
 ### Il turno in `agent.py`
 
 - **`SupportState`**: `messages` usa `add_messages`, quindi i messaggi si accumulano nel thread; `customer_id` resta quello della sessione; `final_answer` e `sources` vengono azzerati a ogni `start_turn`.
-- **`agent_node`**: antepone `SYSTEM_PROMPT` alla conversazione e chiama il modello con i tool collegati. Il modello o restituisce `tool_calls`, oppure scrive direttamente.
+- **`agent_node`**: antepone `SYSTEM_PROMPT` e, se presenti, le preferenze salvate del cliente alla conversazione, poi chiama il modello con i tool collegati. Il modello o restituisce `tool_calls`, oppure scrive direttamente.
 - **`route_agent`**: se l'ultimo messaggio ha `tool_calls` va su `tools`, altrimenti su `finalize`. Non esiste un ritorno da `tools` ad `agent`.
 - **`respond_node`**: prende l'ultima richiesta umana e i risultati dei tool dell'ultimo turno, sceglie il prompt con `final_answer_prompt(tool_name)` e chiama il modello **senza tool**. Poi applica `extract_answer` e salva solo il blocco `<risposta>`.
 - **`finalize`**: cerca l'ultima risposta AI del turno corrente, non del turno precedente. Se è vuota, usa un messaggio neutro che propone un ticket; raccoglie le fonti, registra i tool usati e scrive l'evento `turno` nell'audit.
@@ -549,7 +549,7 @@ Il corpus è composto da dieci documenti Markdown. Il caricamento separa prima l
 ### `memory.py`, `models.py`, `config.py`
 
 - **Memoria breve**: è il checkpointer `InMemorySaver`, con un `thread_id` per conversazione.
-- **Memoria lunga**: `PreferenceMemory` salva solo preferenze esplicite. `_sanitize()` rimuove email, telefoni e numeri di carta; il testo è limitato a 200 caratteri; i duplicati sono confrontati senza distinzione tra maiuscole e minuscole.
+- **Memoria lunga**: `PreferenceMemory` salva solo preferenze esplicite. `_sanitize()` rimuove email, telefoni e numeri di carta; il testo è limitato a 200 caratteri; i duplicati sono confrontati senza distinzione tra maiuscole e minuscole. `agent_node` richiama `get_profile(customer_id)` a ogni turno e lo aggiunge al system prompt, senza condividere le preferenze tra clienti.
 - **Modelli**: `get_chat_model()` crea `ChatOpenAI` per LM Studio o `ChatGoogleGenerativeAI` per Gemini, con `temperature=0`. `final_reasoning_effort()` restituisce `"none"` solo per LFM3 locale; `list_local_models()` e `dedupe_models()` alimentano il selettore della UI.
 - **Configurazione**: `Settings` legge backend, modello, URL, reasoning, `demo_today`, `top_k` e chunking. `demo_today` è fisso al **2026-10-23** per rendere riproducibili finestra di reso e giorni trascorsi. `get_settings()` rilegge l'ambiente a ogni chiamata, così la UI può cambiare modello senza riavviare. Dal `.env` superiore vengono importate solo le chiavi Gemini, per non sovrascrivere i parametri della v2.
 
@@ -565,7 +565,7 @@ La CLI espone gli stessi flussi da terminale: `start_turn`/`resume_turn`, `_hand
 
 `eval/run_eval.py` crea una directory temporanea e dati isolati per ogni scenario, usa il grafo vero e ripristina i percorsi della policy alla fine. Verifica tool, fonti, risposta, HITL, rimborso, ticket e memoria; `summarize()` calcola pass rate, tool hit rate, source hit rate, HITL, refund safety, latenza media e tool per turno usando solo gli scenari che prevedono quel controllo. `write_reports()` scrive il JSON completo, `latest.json`, `riepilogo.md` e la failure gallery.
 
-I test del grafo usano `ScriptedModel`: un modello finto che restituisce risposte preparate. L'intera suite (**60 test**) gira senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file e crea ledger e memoria isolati per i test che ne hanno bisogno; gli altri test esercitano direttamente policy, memoria, audit, corpus, tool, modelli e turni. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
+I test del grafo usano `ScriptedModel`: un modello finto che restituisce risposte preparate. L'intera suite (**62 test**) gira senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file e crea ledger e memoria isolati per i test che ne hanno bisogno; gli altri test esercitano direttamente policy, memoria, audit, corpus, tool, modelli e turni. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
 
 ### `support_data.py`
 
@@ -696,7 +696,7 @@ Questa sezione è il livello di lettura funzione per funzione. Le firme sono abb
 | Funzione | Input → output | Comportamento e casi limite | Test |
 |---|---|---|---|
 | `new_thread_id()` | — → str | UUID esadecimale opaco; separa le conversazioni nello stesso processo. | Usata da tutti i flussi del grafo |
-| `agent_node(state)` | stato → `{"messages": [AIMessage]}` | Antepone `SYSTEM_PROMPT`, chiama il modello con i tool; il modello può restituire `tool_calls` o testo. | `test_graph_flows.py` |
+| `agent_node(state)` | stato → `{"messages": [AIMessage]}` | Antepone `SYSTEM_PROMPT` e le preferenze salvate del cliente, chiama il modello con i tool; il modello può restituire `tool_calls` o testo. | `test_graph_flows.py` |
 | `route_agent(state)` | stato → `"tools"` o `"finalize"` | Guarda l'ultimo messaggio: con `tool_calls` va ai tool, altrimenti chiude. Non esiste il ritorno a `agent`. | `test_tool_call_poi_risposta`, `test_risposta_senza_tool` |
 | `_format_tool_result(message)` | `ToolMessage` → str | Per `cerca_policy` estrae `contesto` dal JSON; per gli altri usa il testo. | `test_dopo_approvazione_nessun_altro_tool` |
 | `start_turn(graph, thread_id, customer_id, message)` | grafo, thread, cliente, testo → risultato | Azzera `final_answer` e `sources`, invoca il grafo con `recursion_limit=20`. | Tutti i test del grafo |

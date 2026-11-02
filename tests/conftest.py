@@ -90,13 +90,13 @@ def sandbox(tmp_path, monkeypatch):
 def scripted_graph(sandbox):
     """Costruisce un grafo con il modello scriptato e le dipendenze del sandbox."""
 
-    def _make(responses: list[AIMessage]):
+    def _make(responses: list[AIMessage], memory=None):
         model = ScriptedModel(responses)
         graph = build_graph(
             sandbox.settings,
             model=model,
             ledger=sandbox.ledger,
-            memory=sandbox.memory,
+            memory=memory if memory is not None else sandbox.memory,
         )
         return graph, model
 

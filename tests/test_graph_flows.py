@@ -12,6 +12,7 @@ from supporto.agent import (
     start_turn,
     state_values,
 )
+from supporto.memory import PreferenceMemory
 from supporto.turns import message_text
 
 
@@ -287,6 +288,46 @@ def test_memoria_salvata_solo_se_richiesta(sandbox, scripted_graph):
     profile = sandbox.memory.get_profile("C-001")
     assert "email" in profile.lower()
     assert "salvato" in state_values(graph, tid)["final_answer"].lower()
+
+
+def test_memoria_lunga_visibile_in_nuovo_thread(sandbox, scripted_graph):
+    graph, _ = scripted_graph(
+        [
+            tool_call("ricorda_preferenza", {"testo": "Preferisco essere contattato via email"}),
+            final("Ho salvato la preferenza."),
+        ]
+    )
+    start_turn(
+        graph,
+        new_thread_id(),
+        "C-001",
+        "Ricorda che preferisco essere contattato via email.",
+    )
+
+    # Nuova istanza dal file: simula il riavvio del processo.
+    reloaded = PreferenceMemory(sandbox.tmp / "preferences.json")
+    graph2, model2 = scripted_graph(
+        [final("Preferisci essere contattato via email.")], memory=reloaded
+    )
+    start_turn(graph2, new_thread_id(), "C-001", "Come preferisco essere contattato?")
+
+    system = "\n".join(
+        str(message.content)
+        for message in model2.calls[0]
+        if message.type == "system"
+    )
+    assert "Preferisco essere contattato via email" in system
+
+
+def test_memoria_lunga_non_condivisa_tra_clienti(sandbox, scripted_graph):
+    sandbox.memory.add("C-001", "Preferisco essere contattato via email")
+    graph, model = scripted_graph([final("Non ho preferenze salvate.")])
+    start_turn(graph, new_thread_id(), "C-002", "Come preferisco essere contattato?")
+
+    system = "\n".join(
+        str(message.content) for message in model.calls[0] if message.type == "system"
+    )
+    assert "Preferisco essere contattato via email" not in system
 
 
 def test_memoria_breve_tra_turni(sandbox, scripted_graph):
