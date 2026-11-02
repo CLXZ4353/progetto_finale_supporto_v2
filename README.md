@@ -501,7 +501,7 @@ La tabella indica dove guardare per capire il comportamento. Le sezioni 8–13 s
 | `src/supporto/corpus.py` | RAG BM25 | Dieci documenti, split per sezioni Markdown, chunk 650/50, sinonimi italiani, top 3 con score positivo, fonti `[S1]`–`[S3]`. |
 | `src/supporto/memory.py`, `models.py`, `config.py` | Runtime | Preferenze esplicite con rimozione di email, telefoni e carte; reasoning finale spento solo per LFM3 locale; `Settings` e `demo_today` governano la riproducibilità. |
 | `app.py` + `cli.py` | Interfacce | UI con `st.session_state` e scheda di approvazione; CLI con ciclo degli interrupt. Entrambe usano lo stesso grafo, lo stesso ledger e gli stessi dati. |
-| `eval/` + `tests/` | Verifica | 31 scenari con tool, fonti, HITL, scritture e memoria attesi; ogni scenario gira su file temporanei. I test usano `ScriptedModel` e dati isolati. |
+| `eval/` + `tests/` | Verifica | 31 scenari con tool, fonti, HITL, scritture e memoria attesi; ogni scenario gira su file temporanei. I test del grafo usano `ScriptedModel`; l'intera suite gira senza LM Studio né rete. |
 | `src/supporto/support_data.py` | Dati demo | Seed `7`, 50 clienti, 200 ordini, ordini curati `ORD-1001`–`ORD-1008`. |
 | `scripts/reset_demo.py` | Ripristino demo | Ricrea i sei JSON e svuota l'audit; è l'unico script versionato. |
 
@@ -522,7 +522,7 @@ I sette tool sono `cerca_policy`, `stato_ordine`, `elenca_ordini`, `verifica_res
 - **`ToolRuntime`**: `_customer(runtime)` legge `customer_id` dallo stato del grafo. Il modello non può passare un cliente come argomento.
 - **Privacy**: `stato_ordine`, `verifica_reso` e `proponi_rimborso` usano `policy.find_order(order_id, customer_id)`. Se l'ordine non esiste o appartiene a un altro cliente, il messaggio è lo stesso (`PRIVACY_MESSAGE`) e l'evento `privacy_accesso_negato` finisce nell'audit.
 - **`cerca_policy`**: unisce la query del modello all'ultima richiesta del cliente, così i dettagli specifici non si perdono; restituisce `contesto` e `fonti`.
-- **`proponi_rimborso`**: verifica l'idoneità; se l'ordine non è idoneo non apre nulla. Se è idoneo calcola l'importo, costruisce la proposta con livello `operatore` o `responsabile` (sopra 500 EUR), chiama `interrupt(...)` e solo dopo l'approvazione chiama `ledger.execute_refund`. Un rifiuto non scrive nulla e registra `rimborso_rifiutato`.
+- **`proponi_rimborso`**: verifica l'idoneità; se l'ordine non è idoneo non apre nulla. Se è idoneo calcola l'importo, costruisce la proposta con livello `operatore` o `responsabile` (sopra 500 EUR), chiama `interrupt(...)` e solo dopo l'approvazione chiama `ledger.execute_refund`. Un rifiuto non esegue il rimborso e registra `rimborso_rifiutato`.
 
 ### `policy.py`: regole e albero decisionale
 
@@ -565,7 +565,7 @@ La CLI espone gli stessi flussi da terminale: `start_turn`/`resume_turn`, `_hand
 
 `eval/run_eval.py` crea una directory temporanea e dati isolati per ogni scenario, usa il grafo vero e ripristina i percorsi della policy alla fine. Verifica tool, fonti, risposta, HITL, rimborso, ticket e memoria; `summarize()` calcola pass rate, tool hit rate, source hit rate, HITL, refund safety, latenza media e tool per turno usando solo gli scenari che prevedono quel controllo. `write_reports()` scrive il JSON completo, `latest.json`, `riepilogo.md` e la failure gallery.
 
-I **60 test** usano `ScriptedModel`: un modello finto che restituisce risposte preparate, senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file, crea ledger e memoria isolati e costruisce il grafo con il modello scriptato. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
+I test del grafo usano `ScriptedModel`: un modello finto che restituisce risposte preparate. L'intera suite (**60 test**) gira senza LM Studio e senza rete. `tests/conftest.py` crea dati demo in una directory temporanea, punta `policy` a quei file e crea ledger e memoria isolati per i test che ne hanno bisogno; gli altri test esercitano direttamente policy, memoria, audit, corpus, tool, modelli e turni. I test coprono grafo, privacy, HITL, ledger, idempotenza, memoria, policy vs corpus, RAG, parsing dei messaggi e coerenza degli scenari.
 
 ### `support_data.py`
 
