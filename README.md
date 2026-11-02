@@ -768,10 +768,6 @@ Questa sezione è il livello di lettura funzione per funzione. Le firme sono abb
 | `eval.write_reports` | payload, risultati → percorsi | Scrive JSON completo, `latest.json`, Markdown e failure gallery. | Usata dalle run reali |
 | `ScriptedModel` (test) | risposte preparate → modello | Restituisce le `AIMessage` nell'ordine, registra le chiamate e fallisce quando le risposte finiscono. | `tests/conftest.py` |
 
-### 15.6 Come leggere una scheda
-
-Per una domanda orale, la sequenza è: **firma → input/output → punto di scrittura → caso limite → test**. Se la funzione non scrive, la domanda centrale è quale dato non deve uscire; se scrive, la domanda è quali controlli precedono la scrittura. Le funzioni critiche sono quelle che possono cambiare lo stato: `proponi_rimborso`, `execute_refund`, `create_ticket`, `PreferenceMemory.add` e `finalize` (per l'audit). Le altre sono di lettura, calcolo o formattazione. La guida inclusa nel pacchetto di consegna (`docs/guida_orale.md` e PDF omonimo) raccoglie dodici risposte brevi, sei domande scomode e una scaletta della demo.
-
 ---
 
 ## 16. Limiti
